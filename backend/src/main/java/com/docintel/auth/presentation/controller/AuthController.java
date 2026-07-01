@@ -1,81 +1,1 @@
-package com.docintel.auth.presentation.controller;
-
-import com.docintel.auth.application.AuthService;
-import com.docintel.auth.infrastructure.exception.InvalidRefreshTokenException;
-import com.docintel.auth.presentation.dto.*;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseCookie;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-@Slf4j
-@RestController
-@RequestMapping("/auth")
-@RequiredArgsConstructor
-public class AuthController {
-
-    private final AuthService authService;
-
-    @Value("${app.cookie.secure:false}")
-    private boolean cookieSecure;
-
-    @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
-        log.info("Registering user: {}", request.email());
-        UserResponse response = authService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
-    @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        log.info("User logging in: {}", request.email());
-        LoginResult result = authService.login(request);
-
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", result.refreshToken())
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .path("/")
-                .maxAge(7 * 24 * 60 * 60)
-                .sameSite("strict")
-                .build();
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(result.response());
-    }
-
-    @PostMapping("/refresh")
-    public ResponseEntity<TokenResponse> refresh(@CookieValue(name = "refreshToken", required = false) String refreshToken) {
-        log.info("Refreshing access token");
-
-        if (refreshToken == null || refreshToken.isBlank()) {
-            throw new InvalidRefreshTokenException("Refresh token is missing");
-        }
-
-        String newAccessToken = authService.refresh(refreshToken);
-        return ResponseEntity.ok(new TokenResponse(newAccessToken));
-    }
-
-    @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@CookieValue(name = "refreshToken", required = false) String refreshToken) {
-        log.info("User logging out");
-        authService.logout(refreshToken);
-
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .path("/")
-                .maxAge(0)
-                .sameSite("strict")
-                .build();
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .build();
-    }
-}
+package com.docintel.auth.presentation.controller;import com.docintel.auth.application.AuthService;import com.docintel.auth.infrastructure.exception.InvalidRefreshTokenException;import com.docintel.auth.presentation.dto.*;import jakarta.validation.Valid;import lombok.RequiredArgsConstructor;import lombok.extern.slf4j.Slf4j;import org.springframework.beans.factory.annotation.Value;import org.springframework.http.HttpHeaders;import org.springframework.http.HttpStatus;import org.springframework.http.ResponseCookie;import org.springframework.http.ResponseEntity;import org.springframework.web.bind.annotation.*;@Slf4j@RestController@RequestMapping("/auth")@RequiredArgsConstructorpublic class AuthController {    private final AuthService authService;    @Value("${app.cookie.secure:false}")    private boolean cookieSecure;    @PostMapping("/register")    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {        log.info("Registering user: {}", request.email());        UserResponse response = authService.register(request);        return ResponseEntity.status(HttpStatus.CREATED).body(response);    }    @PostMapping("/login")    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {        log.info("User logging in: {}", request.email());        LoginResult result = authService.login(request);        ResponseCookie cookie = ResponseCookie.from("refreshToken", result.refreshToken())                .httpOnly(true)                .secure(cookieSecure)                .path("/")                .maxAge(7 * 24 * 60 * 60)                .sameSite("strict")                .build();        return ResponseEntity.ok()                .header(HttpHeaders.SET_COOKIE, cookie.toString())                .body(result.response());    }    @PostMapping("/refresh")    public ResponseEntity<TokenResponse> refresh(@CookieValue(name = "refreshToken", required = false) String refreshToken) {        log.info("Refreshing access token");        if (refreshToken == null || refreshToken.isBlank()) {            throw new InvalidRefreshTokenException("Refresh token is missing");        }        String newAccessToken = authService.refresh(refreshToken);        return ResponseEntity.ok(new TokenResponse(newAccessToken));    }    @PostMapping("/logout")    public ResponseEntity<Void> logout(@CookieValue(name = "refreshToken", required = false) String refreshToken) {        log.info("User logging out");        authService.logout(refreshToken);        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")                .httpOnly(true)                .secure(cookieSecure)                .path("/")                .maxAge(0)                .sameSite("strict")                .build();        return ResponseEntity.ok()                .header(HttpHeaders.SET_COOKIE, cookie.toString())                .build();    }}

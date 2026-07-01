@@ -47,12 +47,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
 
         try {
-            boolean isValidToken = jwtService.isValidToken(token);
-
-            if (!isValidToken) {
-                throw new JwtInvalidException("Invalid Token");
-            }
-
             UUID userId = jwtService.getUserIdFromToken(token);
 
             // Construct an authentication object containing the user's principal (their ID)

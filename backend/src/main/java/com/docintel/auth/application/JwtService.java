@@ -52,7 +52,7 @@ public class JwtService {
         }
     }
 
-    private void validateTokenOrThrow(String token) throws JwtException {
+    public void validateTokenOrThrow(String token) throws JwtException {
         try {
             SignedJWT signedJWT = SignedJWT.parse(token);
             JWSVerifier verifier = new MACVerifier(jwtSecret.getBytes(StandardCharsets.UTF_8));
@@ -72,17 +72,8 @@ public class JwtService {
         }
     }
 
-    public boolean isValidToken(String token) {
-        try {
-            validateTokenOrThrow(token);
-            return true;
-        } catch (JwtException e) {
-            log.warn("JWT validation failed: {}", e.getMessage());
-            return false;
-        }
-    }
-
     public UUID getUserIdFromToken(String token) {
+        validateTokenOrThrow(token);
         try {
             SignedJWT signedJWT = SignedJWT.parse(token);
             String subject = signedJWT.getJWTClaimsSet().getSubject();
