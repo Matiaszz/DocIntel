@@ -8,13 +8,12 @@ O sistema DocIntel precisa armazenar senhas de forma segura.
 Foram avaliados BCrypt, Argon2id e PBKDF2.
 
 ### Decisão
-Utilizar Argon2id através do PasswordEncoder do Spring Security.
+Utilizar BCrypt através do PasswordEncoder do Spring Security.
 
 ### Consequências
 #### Positivas:
-- Melhor resistência a ataques com GPU.
 - Algoritmo moderno.
 - Suporte no Spring Security.
-
+- Consome menos memória que Argon.
 #### Negativas:
-- Consome mais memória que BCrypt.
+- Menor resistência a ataques com GPU comparado a Argon.

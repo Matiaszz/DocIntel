@@ -19,8 +19,8 @@ spring:
     password: ${RABBITMQ_PASSWORD}
 
 app:
-  frontendUrl: "localhost:5173"
-
+  frontendUrl: http://localhost:3000
+  cookieSecure: true
 server:
   error:
     include-message: never
