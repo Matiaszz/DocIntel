@@ -9,8 +9,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
+import com.docintel.user.presentation.dto.UpdateUserRequest;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
 
 import static com.docintel.shared.mappers.UserMapper.mapToUserResponse;
 
@@ -30,6 +33,12 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getCurrentUser(){
         UserResponse response = mapToUserResponse(userService.getCurrentUser());
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<UserResponse> updateCurrentUser(@Valid @RequestBody UpdateUserRequest request){
+        UserResponse response = mapToUserResponse(userService.updateCurrentUser(request));
         return ResponseEntity.ok(response);
     }
 

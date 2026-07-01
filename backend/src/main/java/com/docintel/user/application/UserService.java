@@ -9,6 +9,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.docintel.user.presentation.dto.UpdateUserRequest;
+import com.docintel.auth.infrastructure.exception.EmailAlreadyInUseException;
+
 import java.util.UUID;
 
 @Service
@@ -31,5 +34,21 @@ public class UserService {
         }
 
         return getUserById(userId);
+    }
+
+    public User updateCurrentUser(UpdateUserRequest request) {
+        User currentUser = getCurrentUser();
+
+        if (!currentUser.getEmail().equalsIgnoreCase(request.email())) {
+            if (userRepository.findByEmail(request.email()).isPresent()) {
+                throw new EmailAlreadyInUseException("O endereço de e-mail informado já está em uso.");
+            }
+            currentUser.setEmail(request.email());
+        }
+
+        currentUser.setFirstName(request.firstName());
+        currentUser.setLastName(request.lastName());
+
+        return userRepository.save(currentUser);
     }
 }
