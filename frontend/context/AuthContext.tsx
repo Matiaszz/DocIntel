@@ -120,9 +120,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         body: { firstName, lastName, email, password },
       });
-
-      // 2. Automatically log in after registration
-      await login(email, password);
     } catch (err) {
       let message = 'Falha ao registrar';
       if (err instanceof ApiError && err.response?.code) {
@@ -135,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [login]);
+  }, []);
 
   // Logout handler
   const logout = useCallback(async () => {

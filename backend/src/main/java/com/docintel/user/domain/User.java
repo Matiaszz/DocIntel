@@ -29,4 +29,7 @@ public class User {
     @Password
     private String password;
 
+    @Column(nullable = false)
+    private boolean emailVerified = false;
+
 }

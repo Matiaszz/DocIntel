@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.docintel.user.presentation.dto.UpdateUserRequest;
+import com.docintel.user.presentation.dto.ChangePasswordRequest;
 import com.docintel.auth.infrastructure.exception.EmailAlreadyInUseException;
 
 import java.util.UUID;
@@ -21,6 +22,7 @@ import java.util.UUID;
 public class UserService {
     private final UserRepository userRepository;
     private final CurrentUserProvider userProvider;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     public User getUserById(UUID id){
 
@@ -43,6 +45,17 @@ public class UserService {
         currentUser.setLastName(request.lastName());
 
         return userRepository.save(currentUser);
+    }
+
+    public void changePassword(ChangePasswordRequest request) {
+        User currentUser = userProvider.getCurrentUser();
+
+        if (!passwordEncoder.matches(request.oldPassword(), currentUser.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Senha atual incorreta");
+        }
+
+        currentUser.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(currentUser);
     }
 
     public User getCurrentUser(){

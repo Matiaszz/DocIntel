@@ -17,6 +17,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -160,6 +161,29 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleResponseStatusException(ResponseStatusException e, HttpServletRequest request) {
+        log.warn("Response status exception: {} - {}", e.getStatusCode(), e.getReason());
+        
+        int statusCode = e.getStatusCode().value();
+        String errorName = HttpStatus.valueOf(statusCode).getReasonPhrase();
+        
+        String code = "RESPONSE_STATUS_EXCEPTION";
+        if (e.getReason() != null && e.getReason().contains("E-mail não verificado")) {
+            code = "EMAIL_UNVERIFIED";
+        }
+
+        ApiError error = ApiError.builder()
+                .timestamp(OffsetDateTime.now())
+                .status(statusCode)
+                .error(errorName)
+                .code(code)
+                .message(e.getReason())
+                .path(request.getRequestURI())
+                .build();
+        return ResponseEntity.status(e.getStatusCode()).body(error);
     }
 
     @ExceptionHandler(Exception.class)

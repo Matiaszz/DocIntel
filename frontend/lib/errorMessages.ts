@@ -12,6 +12,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   METHOD_NOT_ALLOWED: 'Operação não permitida pelo servidor.',
   NOT_FOUND: 'Recurso solicitado não foi encontrado.',
   INTERNAL_SERVER_ERROR: 'Ocorreu um erro interno no servidor. Tente novamente mais tarde.',
+  EMAIL_UNVERIFIED: 'E-mail não verificado. Por favor, ative sua conta antes de continuar.',
 };
 
 /**

@@ -1,6 +1,6 @@
 spring:
   application:
-    name: docintel
+    name: docIntel
 
   profiles:
     active: dev
@@ -16,6 +16,12 @@ server:
 cloud:
   storage:
     provider: aws
+
+  email:
+    provider: aws
+
+
+
   aws:
     region:
       static: ${AWS_REGION}
@@ -26,3 +32,5 @@ cloud:
       bucket:
         name: ${AWS_S3_BUCKET}
       endpoint: ${AWS_S3_ENDPOINT}
+    email:
+      from: ${AWS_SES_FROM_EMAIL:docintel650@gmail.com}

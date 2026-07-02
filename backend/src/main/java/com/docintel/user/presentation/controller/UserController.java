@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.docintel.user.presentation.dto.UpdateUserRequest;
+import com.docintel.user.presentation.dto.ChangePasswordRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,6 +41,12 @@ public class UserController {
     public ResponseEntity<UserResponse> updateCurrentUser(@Valid @RequestBody UpdateUserRequest request){
         UserResponse response = mapToUserResponse(userService.updateCurrentUser(request));
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/me/password")
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request){
+        userService.changePassword(request);
+        return ResponseEntity.ok().build();
     }
 
 }

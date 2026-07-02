@@ -37,9 +37,9 @@ Legenda:
 
 ### Conta
 - ✅ Atualizar perfil
-- ⏳ Alterar senha
-- ⏳ Recuperação de senha por e-mail
-- ⏳ Verificação de e-mail
+- ✅ Alterar senha
+- ✅ Recuperação de senha por e-mail
+- ✅ Verificação de e-mail
 
 ### Segurança
 - ⏳ Rate Limiting

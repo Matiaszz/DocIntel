@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import Input from "../ui/Input";
 import Button from "../ui/Button";
@@ -24,6 +24,7 @@ export default function RegisterForm({
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +51,7 @@ export default function RegisterForm({
     setIsLoading(true);
     try {
       await register(firstName, lastName, email, password);
-      onSuccess();
+      setRegisteredEmail(email);
     } catch (err) {
       // Errors are handled in the context, but we catch to stop loading
       console.error("Registration error:", err);
@@ -58,6 +59,33 @@ export default function RegisterForm({
       setIsLoading(false);
     }
   };
+
+  if (registeredEmail) {
+    return (
+      <div className="w-full space-y-6 text-center animate-in fade-in duration-300">
+        <div className="flex flex-col items-center justify-center space-y-3">
+          <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Verifique seu e-mail
+          </h2>
+          <p className="text-sm text-zinc-550 dark:text-zinc-400 max-w-sm">
+            Enviamos um link de confirmação para o endereço <strong className="text-zinc-800 dark:text-zinc-200">{registeredEmail}</strong>. Por favor, acesse o link enviado para ativar a sua conta.
+          </p>
+        </div>
+        <Button
+          type="button"
+          onClick={() => {
+            clearError();
+            onToggleForm();
+          }}
+        >
+          Voltar para o Login
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-6">

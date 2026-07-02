@@ -1,18 +1,20 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { fetchClient } from '../../lib/api';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import ErrorAlert from '../ui/ErrorAlert';
 
 interface LoginFormProps {
   onToggleForm: () => void;
+  onForgotPassword: () => void;
   onSuccess: () => void;
 }
 
-export default function LoginForm({ onToggleForm, onSuccess }: LoginFormProps) {
+export default function LoginForm({ onToggleForm, onForgotPassword, onSuccess }: LoginFormProps) {
   const { login, error: authError, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,10 +22,16 @@ export default function LoginForm({ onToggleForm, onSuccess }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
+
+  const isEmailUnverified = authError?.toLowerCase().includes('não verificado') || false;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
     clearError();
+    setResendSuccess(false);
 
     // Basic Validation
     if (!email.trim() || !password) {
@@ -49,6 +57,23 @@ export default function LoginForm({ onToggleForm, onSuccess }: LoginFormProps) {
     }
   };
 
+  const handleResendVerification = async () => {
+    if (!email.trim()) return;
+    setResendLoading(true);
+    try {
+      await fetchClient.internal.auth('/resend-verification', {
+        method: 'POST',
+        params: { email }
+      });
+      setResendSuccess(true);
+      clearError();
+    } catch (err: any) {
+      setValidationError(err?.message || 'Erro ao reenviar e-mail de verificação.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   return (
     <div className="w-full space-y-6">
       <div className="space-y-2 text-center">
@@ -60,7 +85,32 @@ export default function LoginForm({ onToggleForm, onSuccess }: LoginFormProps) {
         </p>
       </div>
 
-      <ErrorAlert message={validationError || authError} />
+      <ErrorAlert message={validationError || (isEmailUnverified ? null : authError)} />
+
+      {isEmailUnverified && (
+        <div className="p-3.5 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-xl space-y-2 text-xs text-indigo-750 dark:text-indigo-400">
+          <p>
+            Parece que a sua conta ainda não foi ativada. Deseja que enviemos um novo link de confirmação?
+          </p>
+          {resendSuccess ? (
+            <p className="text-emerald-600 dark:text-emerald-400 font-semibold pt-1">
+              E-mail de verificação reenviado com sucesso! Verifique sua caixa de entrada.
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={handleResendVerification}
+              disabled={resendLoading}
+              className="inline-flex items-center gap-1.5 font-bold hover:underline text-indigo-600 dark:text-indigo-300 disabled:opacity-50 cursor-pointer pt-1"
+            >
+              {resendLoading ? (
+                <RefreshCw className="w-3 h-3 animate-spin" />
+              ) : null}
+              Reenviar e-mail de ativação
+            </button>
+          )}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
@@ -89,7 +139,7 @@ export default function LoginForm({ onToggleForm, onSuccess }: LoginFormProps) {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 disabled={isLoading}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors flex items-center justify-center cursor-pointer"
+                className="text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-200 transition-colors flex items-center justify-center cursor-pointer"
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -98,7 +148,11 @@ export default function LoginForm({ onToggleForm, onSuccess }: LoginFormProps) {
           <div className="flex justify-end">
             <a
               href="#"
-              onClick={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.preventDefault();
+                clearError();
+                onForgotPassword();
+              }}
               className="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 transition-colors"
             >
               Esqueceu a senha?

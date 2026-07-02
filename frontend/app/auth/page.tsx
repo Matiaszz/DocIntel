@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../hooks/useAuth";
 import LoginForm from "../../components/auth/LoginForm";
 import RegisterForm from "../../components/auth/RegisterForm";
+import ForgotPasswordForm from "../../components/auth/ForgotPasswordForm";
 import DashboardSkeleton from "../../components/dashboard/DashboardSkeleton";
 import { Loader2, FileText, Shield, BookOpen, Search } from "lucide-react";
 
 export default function AuthPage() {
   const { isAuthenticated, isLoading } = useAuth();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot-password">("login");
   const router = useRouter();
 
   // Redirect if already authenticated
@@ -137,12 +138,17 @@ export default function AuthPage() {
             {mode === "login" ? (
               <LoginForm
                 onToggleForm={() => setMode("register")}
+                onForgotPassword={() => setMode("forgot-password")}
                 onSuccess={() => router.push("/")}
               />
-            ) : (
+            ) : mode === "register" ? (
               <RegisterForm
                 onToggleForm={() => setMode("login")}
                 onSuccess={() => router.push("/")}
+              />
+            ) : (
+              <ForgotPasswordForm
+                onBackToLogin={() => setMode("login")}
               />
             )}
           </div>

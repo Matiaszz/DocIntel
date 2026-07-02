@@ -1,6 +1,13 @@
 package com.docintel.auth.application;
 
 import com.docintel.auth.domain.RefreshTokenRepository;
+import com.docintel.auth.domain.PasswordResetTokenRepository;
+import com.docintel.auth.domain.EmailVerificationTokenRepository;
+import com.docintel.auth.domain.EmailVerificationToken;
+import com.docintel.auth.domain.PasswordResetToken;
+import com.docintel.auth.presentation.dto.ForgotPasswordRequest;
+import com.docintel.auth.presentation.dto.ResetPasswordRequest;
+import com.docintel.shared.infrastructure.email.EmailSender;
 import com.docintel.auth.infrastructure.exception.EmailAlreadyInUseException;
 import com.docintel.auth.presentation.dto.RegisterRequest;
 import com.docintel.auth.presentation.dto.UserResponse;
@@ -14,6 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import java.time.Instant;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -30,6 +38,15 @@ class AuthServiceTest {
 
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Mock
+    private EmailVerificationTokenRepository emailVerificationTokenRepository;
+
+    @Mock
+    private EmailSender emailSender;
 
     @Mock
     private JwtService jwtService;
@@ -104,5 +121,83 @@ class AuthServiceTest {
         // Verify userRepository.save was never called
         verify(userRepository, never()).save(any(User.class));
         verify(passwordEncoder, never()).encode(anyString());
+    }
+
+    @Test
+    void shouldVerifyEmailSuccessfully() {
+        // Arrange
+        String tokenStr = "verificationToken";
+        User user = new User();
+        user.setEmail("user@example.com");
+        user.setEmailVerified(false);
+
+        EmailVerificationToken token = EmailVerificationToken.builder()
+                .token(tokenStr)
+                .user(user)
+                .expiryDate(Instant.now().plusSeconds(3600))
+                .build();
+
+        when(emailVerificationTokenRepository.findByToken(tokenStr)).thenReturn(Optional.of(token));
+        when(userRepository.save(user)).thenReturn(user);
+
+        // Act
+        authService.verifyEmail(tokenStr);
+
+        // Assert
+        assertTrue(user.isEmailVerified());
+        verify(emailVerificationTokenRepository).findByToken(tokenStr);
+        verify(userRepository).save(user);
+        verify(emailVerificationTokenRepository).delete(token);
+    }
+
+    @Test
+    void shouldForgotPasswordSuccessfully() {
+        // Arrange
+        String email = "john.doe@example.com";
+        User user = new User();
+        user.setEmail(email);
+        user.setFirstName("John");
+
+        ForgotPasswordRequest request = new ForgotPasswordRequest(email);
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+
+        // Act
+        authService.forgotPassword(request);
+
+        // Assert
+        verify(passwordResetTokenRepository).deleteByUser(user);
+        verify(passwordResetTokenRepository).save(any(PasswordResetToken.class));
+        verify(emailSender).sendEmail(eq(email), eq("Recuperação de Senha - DocIntel"), anyString());
+    }
+
+    @Test
+    void shouldResetPasswordSuccessfully() {
+        // Arrange
+        String tokenStr = "resetToken";
+        User user = new User();
+        user.setPassword("oldPassword");
+
+        PasswordResetToken token = PasswordResetToken.builder()
+                .token(tokenStr)
+                .user(user)
+                .expiryDate(Instant.now().plusSeconds(3600))
+                .build();
+
+        ResetPasswordRequest request = new ResetPasswordRequest(tokenStr, "newPassword123");
+
+        when(passwordResetTokenRepository.findByToken(tokenStr)).thenReturn(Optional.of(token));
+        when(passwordEncoder.encode("newPassword123")).thenReturn("encodedNewPassword");
+        when(userRepository.save(user)).thenReturn(user);
+
+        // Act
+        authService.resetPassword(request);
+
+        // Assert
+        assertEquals("encodedNewPassword", user.getPassword());
+        verify(passwordResetTokenRepository).findByToken(tokenStr);
+        verify(passwordEncoder).encode("newPassword123");
+        verify(userRepository).save(user);
+        verify(passwordResetTokenRepository).delete(token);
     }
 }

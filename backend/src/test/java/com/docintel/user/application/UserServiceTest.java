@@ -4,6 +4,7 @@ import com.docintel.shared.infrastructure.security.CurrentUserProvider;
 import com.docintel.user.domain.User;
 import com.docintel.user.domain.UserRepository;
 import com.docintel.user.presentation.dto.UpdateUserRequest;
+import com.docintel.user.presentation.dto.ChangePasswordRequest;
 import com.docintel.auth.infrastructure.exception.EmailAlreadyInUseException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +28,9 @@ public class UserServiceTest {
 
     @Mock
     private CurrentUserProvider userProvider;
+
+    @Mock
+    private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private UserService userService;
@@ -172,5 +176,50 @@ public class UserServiceTest {
 
         verify(userRepository).findByEmail("existing@example.com");
         verify(userRepository, never()).save(any(User.class));
-    }
+     }
+
+     @Test
+     void shouldChangePasswordSuccessfully() {
+         // Arrange
+         User currentUser = new User();
+         currentUser.setPassword("encodedOldPassword");
+
+         ChangePasswordRequest request = new ChangePasswordRequest("oldPassword", "newPassword8Chars");
+
+         when(userProvider.getCurrentUser()).thenReturn(currentUser);
+         when(passwordEncoder.matches("oldPassword", "encodedOldPassword")).thenReturn(true);
+         when(passwordEncoder.encode("newPassword8Chars")).thenReturn("encodedNewPassword");
+         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+         // Act
+         userService.changePassword(request);
+
+         // Assert
+         assertEquals("encodedNewPassword", currentUser.getPassword());
+         verify(passwordEncoder).matches("oldPassword", "encodedOldPassword");
+         verify(passwordEncoder).encode("newPassword8Chars");
+         verify(userRepository).save(currentUser);
+     }
+
+     @Test
+     void shouldThrowExceptionWhenOldPasswordIsIncorrect() {
+         // Arrange
+         User currentUser = new User();
+         currentUser.setPassword("encodedOldPassword");
+
+         ChangePasswordRequest request = new ChangePasswordRequest("wrongPassword", "newPassword8Chars");
+
+         when(userProvider.getCurrentUser()).thenReturn(currentUser);
+         when(passwordEncoder.matches("wrongPassword", "encodedOldPassword")).thenReturn(false);
+
+         // Act & Assert
+         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
+             userService.changePassword(request);
+         });
+
+         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+         assertEquals("Senha atual incorreta", exception.getReason());
+         verify(passwordEncoder).matches("wrongPassword", "encodedOldPassword");
+         verify(userRepository, never()).save(any(User.class));
+     }
 }
