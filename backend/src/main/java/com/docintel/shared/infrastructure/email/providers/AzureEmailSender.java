@@ -12,6 +12,6 @@ import org.springframework.stereotype.Service;
 public class AzureEmailSender implements EmailSender {
     @Override
     public void sendEmail(String to, String subject, String body) {
-        throw new UnsupportedOperationException("Azure Email Sender não está implementado.");
+        throw new UnsupportedOperationException("Azure Email Sender is not implemented.");
     }
 }

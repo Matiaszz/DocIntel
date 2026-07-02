@@ -1333,7 +1333,7 @@ export default function DocumentManagement() {
                 type="button"
                 disabled={isDeleting}
                 onClick={() => handleDeleteFolder(folderToDelete.id)}
-                className="px-4 py-2 text-xs font-semibold bg-red-650 hover:bg-red-755 text-white rounded-xl cursor-pointer shadow-sm flex items-center gap-1.5 disabled:opacity-80"
+                className="px-4 py-2 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-xl cursor-pointer shadow-sm flex items-center gap-1.5 disabled:opacity-80"
               >
                 {isDeleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {isDeleting ? 'Excluindo...' : 'Confirmar Exclusão'}

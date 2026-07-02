@@ -9,7 +9,6 @@ import com.docintel.folder.domain.Folder;
 import com.docintel.folder.domain.FolderRepository;
 import com.docintel.shared.infrastructure.security.CurrentUserProvider;
 import com.docintel.shared.infrastructure.storage.FileStorage;
-import com.docintel.user.application.UserService;
 import com.docintel.user.domain.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -21,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -82,7 +83,7 @@ public class DocumentService {
         Document document = new Document();
         document.setId(documentId);
         document.setName(fileName);
-        document.setS3Key(fileStorage.resolveFileKey(currentUser.getId(), documentId, fileName));
+        document.setS3Key(fileStorage.resolveFileKey(documentId, fileName));
         document.setFolder(targetFolder);
         document.setOwner(currentUser);
         document.setCategory(documentCategory != null ? documentCategory : DocumentCategory.GENERAL);
@@ -215,7 +216,7 @@ public class DocumentService {
     }
 
     @Transactional(readOnly = true)
-    public java.io.InputStream downloadDocumentStream(Document doc) {
+    public InputStream downloadDocumentStream(Document doc) {
         return fileStorage.download(doc.getS3Key());
     }
 
@@ -265,10 +266,10 @@ public class DocumentService {
     }
 
     @Transactional(readOnly = true)
-    public void zipFolder(UUID folderId, java.util.zip.ZipOutputStream zos, String currentPath) throws java.io.IOException {
+    public void zipFolder(UUID folderId, java.util.zip.ZipOutputStream zos, String currentPath) throws IOException {
         List<Document> documents = documentRepository.findByFolderId(folderId);
         for (Document doc : documents) {
-            try (java.io.InputStream is = fileStorage.download(doc.getS3Key())) {
+            try (InputStream is = fileStorage.download(doc.getS3Key())) {
                 if (is != null) {
                     String zipEntryPath = currentPath + doc.getName();
                     zos.putNextEntry(new java.util.zip.ZipEntry(zipEntryPath));

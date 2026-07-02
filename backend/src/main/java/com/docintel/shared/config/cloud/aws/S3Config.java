@@ -41,10 +41,10 @@ public class S3Config {
         try {
             // Teste simples de conectividade
             client.listBuckets();
-            log.info("✅ Conexão S3 estabelecida com sucesso");
+            log.info("✅ S3 connection established.");
         } catch (Exception e) {
-            log.error("❌ Erro ao conectar com S3: {}", e.getMessage());
-            throw new RuntimeException("Falha na conexão S3", e);
+            log.error("❌ Error on S3 connection: {}", e.getMessage());
+            throw new RuntimeException("Error on S3 connection");
         }
     }
 }

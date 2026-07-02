@@ -72,7 +72,7 @@ public class DocumentServiceTest {
         when(currentUserProvider.getCurrentUser()).thenReturn(user);
         when(folderService.resolveAndCreatePath("finance/", null, user)).thenReturn(folder);
         when(fileStorage.uploadFile(eq(file), eq(user.getId()), any(UUID.class))).thenReturn(true);
-        when(fileStorage.resolveFileKey(eq(user.getId()), any(UUID.class), eq("test.pdf"))).thenReturn("resolved-s3-key");
+        when(fileStorage.resolveFileKey(any(UUID.class), eq("test.pdf"))).thenReturn("resolved-s3-key");
 
         Document savedDoc = new Document();
         savedDoc.setId(UUID.randomUUID());

@@ -13,7 +13,7 @@ public interface FileStorage {
 
     InputStream download(String key);
 
-    boolean deleteFile(UUID userId, UUID fileId);
+    void deleteFile(UUID userId, UUID fileId);
 
     boolean deleteProfilePicture(UUID userId, UUID fileId);
 
@@ -21,15 +21,11 @@ public interface FileStorage {
         return "users/" + userId.toString() + "/";
     }
 
-    default String getUserFilesPath(UUID userId){
-        return getUserPath(userId) + "files/";
-    }
-
     default String resolvePictureKey(UUID userId, UUID fileId){
         return getUserPath(userId) + "picture/" + fileId.toString();
     }
 
-    default String resolveFileKey(UUID userId, UUID fileId, String fileName){
+    default String resolveFileKey(UUID fileId, String fileName){
         return String.format("documents/%s_%s", fileId.toString(), fileName);
     }
 

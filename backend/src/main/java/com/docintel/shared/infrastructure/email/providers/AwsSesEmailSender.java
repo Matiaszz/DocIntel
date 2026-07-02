@@ -38,10 +38,10 @@ public class AwsSesEmailSender implements EmailSender {
                     .build();
 
             sesClient.sendEmail(request);
-            log.info("E-mail enviado com sucesso para {} via AWS SES", to);
+            log.info("E-mail sent successfully to {} via AWS SES", to);
         } catch (Exception e) {
-            log.error("Falha ao enviar e-mail para {} via AWS SES: {}", to, e.getMessage(), e);
-            throw new RuntimeException("Falha ao enviar e-mail", e);
+            log.error("E-mail not sent to {} via AWS SES: {}", to, e.getMessage(), e);
+            throw new RuntimeException("Fail on email sending.", e);
         }
     }
 }

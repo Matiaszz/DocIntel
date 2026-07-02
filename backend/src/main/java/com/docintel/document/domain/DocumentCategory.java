@@ -73,8 +73,10 @@ public enum DocumentCategory {
         if (categoryName == null || categoryName.trim().isEmpty()) {
             return null;
         }
+
         try {
             return DocumentCategory.valueOf(categoryName.trim().toUpperCase());
+
         } catch (IllegalArgumentException e) {
             return null;
         }

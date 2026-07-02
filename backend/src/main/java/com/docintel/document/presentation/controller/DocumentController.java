@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -120,7 +121,7 @@ public class DocumentController {
     public ResponseEntity<StreamingResponseBody> downloadDocument(@PathVariable UUID id) {
         Document doc = documentService.getDocument(id);
         StreamingResponseBody responseBody = outputStream -> {
-            try (java.io.InputStream is = documentService.downloadDocumentStream(doc)) {
+            try (InputStream is = documentService.downloadDocumentStream(doc)) {
                 if (is != null) {
                     is.transferTo(outputStream);
                 }
@@ -137,7 +138,7 @@ public class DocumentController {
     public ResponseEntity<StreamingResponseBody> viewDocument(@PathVariable UUID id) {
         Document doc = documentService.getDocument(id);
         StreamingResponseBody responseBody = outputStream -> {
-            try (java.io.InputStream is = documentService.downloadDocumentStream(doc)) {
+            try (InputStream is = documentService.downloadDocumentStream(doc)) {
                 if (is != null) {
                     is.transferTo(outputStream);
                 }

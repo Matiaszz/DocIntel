@@ -39,8 +39,8 @@ public class AwsS3Storage implements FileStorage {
                 throw new IOException("Filename is null.");
             }
 
-            String key = resolveFileKey(userId, fileId, fileName);
-            
+            String key = resolveFileKey(fileId, fileName);
+
             // S3 user-defined metadata values must be US-ASCII. Non-ASCII characters (like accents or spaces) will corrupt Signature Version 4.
             String encodedFileName = java.net.URLEncoder.encode(fileName, java.nio.charset.StandardCharsets.UTF_8);
             Map<String, String> metadata = Map.of(
@@ -90,7 +90,7 @@ public class AwsS3Storage implements FileStorage {
     }
 
     @Override
-    public boolean deleteFile(UUID userId, UUID fileId) {
+    public void deleteFile(UUID userId, UUID fileId) {
         try {
             String prefix = "documents/" + fileId.toString() + "_";
            ListObjectsV2Response listResponse = s3.listObjectsV2(
@@ -103,10 +103,8 @@ public class AwsS3Storage implements FileStorage {
             listResponse.contents().forEach(object -> {
                 deleteFile(object.key());
             });
-            return true;
         } catch (Exception e) {
             log.error("Failed to delete file from S3. FileId: {}, Error: {}", fileId, e.getMessage());
-            return false;
         }
     }
 
