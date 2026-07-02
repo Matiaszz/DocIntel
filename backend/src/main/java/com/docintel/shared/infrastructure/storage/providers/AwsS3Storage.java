@@ -40,9 +40,12 @@ public class AwsS3Storage implements FileStorage {
             }
 
             String key = resolveFileKey(userId, fileId, fileName);
+            
+            // S3 user-defined metadata values must be US-ASCII. Non-ASCII characters (like accents or spaces) will corrupt Signature Version 4.
+            String encodedFileName = java.net.URLEncoder.encode(fileName, java.nio.charset.StandardCharsets.UTF_8);
             Map<String, String> metadata = Map.of(
                     "fileId", fileId.toString(),
-                    "originalFilename", fileName
+                    "originalFilename", encodedFileName
             );
 
             putFile(key, file.getBytes(), metadata);
@@ -73,17 +76,60 @@ public class AwsS3Storage implements FileStorage {
 
     @Override
     public InputStream download(String key) {
-        return null;
+        try {
+            return s3.getObject(
+                    software.amazon.awssdk.services.s3.model.GetObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(key)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Failed to download file from S3. Key: {}, Error: {}", key, e.getMessage());
+            return null;
+        }
     }
 
     @Override
     public boolean deleteFile(UUID userId, UUID fileId) {
-        return false;
+        try {
+            String prefix = "documents/" + fileId.toString() + "_";
+            software.amazon.awssdk.services.s3.model.ListObjectsV2Response listResponse = s3.listObjectsV2(
+                    software.amazon.awssdk.services.s3.model.ListObjectsV2Request.builder()
+                            .bucket(bucketName)
+                            .prefix(prefix)
+                            .build()
+            );
+
+            listResponse.contents().forEach(object -> {
+                s3.deleteObject(
+                        software.amazon.awssdk.services.s3.model.DeleteObjectRequest.builder()
+                                .bucket(bucketName)
+                                .key(object.key())
+                                .build()
+                );
+            });
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to delete file from S3. FileId: {}, Error: {}", fileId, e.getMessage());
+            return false;
+        }
     }
 
     @Override
     public boolean deleteProfilePicture(UUID userId, UUID fileId) {
-        return false;
+        try {
+            String key = resolvePictureKey(userId, fileId);
+            s3.deleteObject(
+                    software.amazon.awssdk.services.s3.model.DeleteObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(key)
+                            .build()
+            );
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to delete profile picture from S3. FileId: {}, Error: {}", fileId, e.getMessage());
+            return false;
+        }
     }
 
     private void putFile(String key, byte[] content, Map<String, String> metadata) {

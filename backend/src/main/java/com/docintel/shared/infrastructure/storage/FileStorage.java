@@ -30,8 +30,7 @@ public interface FileStorage {
     }
 
     default String resolveFileKey(UUID userId, UUID fileId, String fileName){
-        return String.format("%s/%s_%s", getUserFilesPath(userId), fileId.toString(), fileName);
+        return String.format("documents/%s_%s", fileId.toString(), fileName);
     }
-
 
 }

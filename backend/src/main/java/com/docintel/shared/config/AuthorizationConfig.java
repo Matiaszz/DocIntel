@@ -29,6 +29,7 @@ public class AuthorizationConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(STATELESS))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
                         .requestMatchers(
                                 "/actuator/**",
                                 "/health",
