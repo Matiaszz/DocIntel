@@ -14,5 +14,7 @@ public record FileTreeViewDTO(
         FolderVisibility visibility, // null for files
         DocumentCategory category, // null for folders
         boolean analyzed, // false for folders
-        List<FileTreeViewDTO> children
+        List<FileTreeViewDTO> children,
+        boolean favorite,
+        String tags
 ) {}

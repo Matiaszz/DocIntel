@@ -1,4 +1,4 @@
-package com.docintel.auth.domain;
+package com.docintel.auth.domain.password;
 
 import com.docintel.user.domain.User;
 import jakarta.persistence.*;
@@ -17,8 +17,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "email_verification_tokens")
-public class EmailVerificationToken {
+@Table(name = "password_reset_tokens")
+public class PasswordResetToken {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

@@ -22,7 +22,9 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
-  X
+  X,
+  Star,
+  Tag
 } from 'lucide-react';
 import { fetchClient, getAccessToken } from '../../lib/api';
 import { useCategories } from '../../hooks/useCategories';
@@ -37,6 +39,8 @@ interface TreeNode {
   category?: string | null;
   analyzed?: boolean;
   children: TreeNode[];
+  favorite?: boolean;
+  tags?: string;
 }
 
 export default function DocumentManagement() {
@@ -92,6 +96,67 @@ export default function DocumentManagement() {
   const [fileToDelete, setFileToDelete] = useState<TreeNode | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
+
+  const [backendPaginatedFiles, setBackendPaginatedFiles] = useState<TreeNode[]>([]);
+  const [backendTotalPages, setBackendTotalPages] = useState(1);
+  const [backendTotalElements, setBackendTotalElements] = useState(0);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchTrigger, setSearchTrigger] = useState(0);
+  const [isEditingTags, setIsEditingTags] = useState(false);
+  const [tempTags, setTempTags] = useState('');
+
+  // Effect to load paginated search and category results from backend
+  useEffect(() => {
+    if (viewMode !== 'categories') return;
+
+    const fetchPaginated = async () => {
+      setSearchLoading(true);
+      try {
+        const isFav = selectedCategoryFilter === 'FAVORITES' ? 'true' : '';
+        const cat = (selectedCategoryFilter !== 'ALL' && selectedCategoryFilter !== 'FAVORITES') 
+          ? selectedCategoryFilter 
+          : '';
+
+        const data = await fetchClient.internal.request<any>('/api/documents/search', {
+          method: 'GET',
+          params: {
+            search: searchTerm,
+            category: cat,
+            favorite: isFav ? 'true' : undefined,
+            page: (currentPage - 1).toString(),
+            size: '6'
+          }
+        });
+
+        if (data) {
+          const mapped: TreeNode[] = (data.content || []).map((doc: any) => ({
+            id: doc.id,
+            name: doc.name,
+            type: 'FILE',
+            s3Key: doc.s3Key,
+            category: doc.category,
+            analyzed: doc.analyzed,
+            favorite: doc.favorite,
+            tags: doc.tags || '',
+            children: []
+          }));
+          setBackendPaginatedFiles(mapped);
+          setBackendTotalPages(data.totalPages || 1);
+          setBackendTotalElements(data.totalElements || 0);
+        }
+      } catch (err) {
+        console.error('Search error:', err);
+      } finally {
+        setSearchLoading(false);
+      }
+    };
+
+    const delayDebounce = setTimeout(() => {
+      fetchPaginated();
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [viewMode, selectedCategoryFilter, searchTerm, currentPage, searchTrigger]);
 
   useEffect(() => {
     if (!uploadFile) {
@@ -239,6 +304,45 @@ export default function DocumentManagement() {
     setPreviewUrl(null);
     setPreviewFile(null);
     setZoomScale(100);
+    setIsEditingTags(false);
+  };
+
+  const handleToggleFavorite = async (node: TreeNode) => {
+    try {
+      await fetchClient.internal.request(`/api/documents/${node.id}/favorite`, {
+        method: 'PUT'
+      });
+      await fetchTree();
+      setSearchTrigger(prev => prev + 1);
+    } catch (err) {
+      console.error(err);
+      setError('Falha ao atualizar favoritos.');
+    }
+  };
+
+  const handleSaveTags = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!previewFile) return;
+
+    try {
+      const updatedNode = await fetchClient.internal.request<any>(`/api/documents/${previewFile.id}/tags`, {
+        method: 'PUT',
+        body: JSON.stringify(tempTags), // pass raw tag string
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (updatedNode) {
+        setPreviewFile(prev => prev ? { ...prev, tags: updatedNode.tags } : null);
+        setIsEditingTags(false);
+        await fetchTree();
+        setSearchTrigger(prev => prev + 1);
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Falha ao salvar tags.');
+    }
   };
 
   const handleDeleteDocument = async (id: string) => {
@@ -463,10 +567,10 @@ export default function DocumentManagement() {
       {/* SIDEBAR (Mac Finder Style) */}
       <aside className="w-full md:w-52 bg-zinc-50/60 dark:bg-zinc-950/60 border-b md:border-b-0 md:border-r border-zinc-200 dark:border-zinc-800/80 p-4 shrink-0 flex flex-col justify-between">
         <div className="space-y-6">
-          {/* Favorites Section */}
+          {/* Shortcuts / Atalhos Section */}
           <div className="space-y-1.5">
             <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest px-2.5">
-              Favoritos
+              Atalhos
             </h4>
             <div className="space-y-0.5">
               <button
@@ -487,6 +591,7 @@ export default function DocumentManagement() {
                 onClick={() => {
                   setViewMode('categories');
                   setSelectedCategoryFilter('ALL');
+                  setCurrentPage(1);
                 }}
                 className={`w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-semibold rounded-lg text-left cursor-pointer border transition-all ${
                   viewMode === 'categories' && selectedCategoryFilter === 'ALL'
@@ -496,6 +601,21 @@ export default function DocumentManagement() {
               >
                 <FileText className="w-3.5 h-3.5" />
                 Todos os Arquivos
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode('categories');
+                  setSelectedCategoryFilter('FAVORITES');
+                  setCurrentPage(1);
+                }}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-semibold rounded-lg text-left cursor-pointer border transition-all ${
+                  viewMode === 'categories' && selectedCategoryFilter === 'FAVORITES'
+                    ? 'bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/30'
+                    : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40'
+                }`}
+              >
+                <Star className="w-3.5 h-3.5 text-zinc-450 dark:text-zinc-400" />
+                Favoritos
               </button>
             </div>
           </div>
@@ -584,7 +704,7 @@ export default function DocumentManagement() {
                     <span>Meu Drive</span>
                     <span className="text-zinc-305 dark:text-zinc-700">/</span>
                     <span className="text-zinc-755 dark:text-zinc-200 font-semibold">
-                      Categorizado: {selectedCategoryFilter === 'ALL' ? 'Todos' : categories.find(c => c.id === selectedCategoryFilter)?.label}
+                      Categorizado: {selectedCategoryFilter === 'ALL' ? 'Todos' : selectedCategoryFilter === 'FAVORITES' ? 'Favoritos' : (categories.find(c => c.id === selectedCategoryFilter)?.label || selectedCategoryFilter)}
                     </span>
                   </>
                 )}
@@ -609,6 +729,27 @@ export default function DocumentManagement() {
               </button>
             </div>
           </div>
+
+          {/* Categories Search Box (at the top of list explorer) */}
+          {viewMode === 'categories' && (
+            <div className="relative w-full shrink-0 animate-in fade-in duration-200">
+              {searchLoading ? (
+                <Loader2 className="absolute left-3.5 top-3 h-4 w-4 text-indigo-500 animate-spin" />
+              ) : (
+                <Search className="absolute left-3.5 top-3 h-4 w-4 text-zinc-400" />
+              )}
+              <input
+                type="text"
+                placeholder="Pesquisar arquivos por nome ou tags..."
+                value={searchTerm}
+                onChange={e => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-10 pr-4 py-2.5 text-xs border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 text-zinc-700 dark:text-zinc-300 shadow-sm transition-all hover:border-zinc-300 dark:hover:border-zinc-700"
+              />
+            </div>
+          )}
 
           {/* Errors display */}
           {error && (
@@ -668,7 +809,12 @@ export default function DocumentManagement() {
                             ) : (
                               <File className="w-4.5 h-4.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
                             )}
-                            <span className="font-semibold text-zinc-800 dark:text-zinc-200 truncate">{node.name}</span>
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="font-semibold text-zinc-800 dark:text-zinc-200 truncate">{node.name}</span>
+                              {!isFolder && node.favorite && (
+                                <Star className="w-3 h-3 text-amber-550 fill-amber-400 shrink-0" />
+                              )}
+                            </div>
                           </div>
 
                           <div className="flex items-center gap-3 shrink-0">
@@ -678,9 +824,20 @@ export default function DocumentManagement() {
                                 {node.children?.length || 0} itens
                               </span>
                             ) : (
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${getBadgeColor(node.category)}`}>
-                                {resolveCategory(node.category)?.label || 'Geral'}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                {node.tags && node.tags.split(',').slice(0, 2).map((t, i) => {
+                                  const trimmed = t.trim();
+                                  if (!trimmed) return null;
+                                  return (
+                                    <span key={i} className="hidden sm:inline-block px-1.5 py-0.2 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 rounded text-[8px] font-medium border border-indigo-100/40 dark:border-indigo-900/20">
+                                      {trimmed}
+                                    </span>
+                                  );
+                                })}
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${getBadgeColor(node.category)}`}>
+                                  {resolveCategory(node.category)?.label || 'Geral'}
+                                </span>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -690,14 +847,14 @@ export default function DocumentManagement() {
               )
             ) : (
               /* CATEGORIES FLAT EXPLORER LIST */
-              filteredFiles.length === 0 ? (
-                <div className="flex flex-col items-center justify-center min-h-[280px] text-center gap-3">
-                  <FileText className="w-10 h-10 text-zinc-400" />
-                  <p className="text-xs text-zinc-400">Nenhum documento encontrado na categoria selecionada.</p>
+              backendPaginatedFiles.length === 0 ? (
+                <div className="flex flex-col items-center justify-center min-h-[280px] text-center gap-3 animate-in fade-in duration-200">
+                  <FileText className="w-10 h-10 text-zinc-405 dark:text-zinc-650" />
+                  <p className="text-xs text-zinc-405">Nenhum documento encontrado.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-zinc-200/80 dark:divide-zinc-850/80 flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-200 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-300">
-                  {paginatedFiles.map(file => (
+                  {backendPaginatedFiles.map(file => (
                     <div 
                       key={file.id}
                       onDoubleClick={() => handlePreviewFile(file)}
@@ -709,12 +866,25 @@ export default function DocumentManagement() {
                           <FileText className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">
-                            {file.name}
-                          </p>
-                          <p className="text-[9px] text-zinc-400 mt-0.5 truncate">
-                            S3 Key: {file.s3Key}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate max-w-[280px]">
+                              {file.name}
+                            </p>
+                            {file.favorite && (
+                              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                            {file.tags && file.tags.split(',').map((t, i) => {
+                              const trimmed = t.trim();
+                              if (!trimmed) return null;
+                              return (
+                                <span key={i} className="px-1.5 py-0.2 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 rounded text-[8px] font-medium border border-indigo-100/40 dark:border-indigo-900/20">
+                                  {trimmed}
+                                </span>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
 
@@ -738,46 +908,31 @@ export default function DocumentManagement() {
             )}
           </div>
 
-          {/* Categories Search and Filter Controls (only in Category view) */}
-          {viewMode === 'categories' && (
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1 shrink-0">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-zinc-400" />
-                <input
-                  type="text"
-                  placeholder="Pesquisar arquivos nesta visualização..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 text-xs border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-955 rounded-xl focus:outline-none focus:border-indigo-500 text-zinc-700 dark:text-zinc-300"
-                />
+          {/* Categories Pagination Controls (only in Category view) */}
+          {viewMode === 'categories' && backendTotalPages > 0 && (
+            <div className="flex items-center justify-between pt-2 shrink-0 animate-in fade-in duration-200 border-t border-zinc-100 dark:border-zinc-850">
+              <span className="text-[10px] text-zinc-400 font-medium">
+                Mostrando {backendPaginatedFiles.length} de {backendTotalElements} arquivos
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1 || searchLoading}
+                  className="px-2.5 py-1.5 border border-zinc-200 dark:border-zinc-800 rounded-lg text-[10px] font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 cursor-pointer text-zinc-700 dark:text-zinc-300 transition-all"
+                >
+                  Anterior
+                </button>
+                <span className="text-[10px] text-zinc-500 font-medium px-2">
+                  Página {currentPage} de {backendTotalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(backendTotalPages, prev + 1))}
+                  disabled={currentPage === backendTotalPages || searchLoading}
+                  className="px-2.5 py-1.5 border border-zinc-200 dark:border-zinc-800 rounded-lg text-[10px] font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 cursor-pointer text-zinc-700 dark:text-zinc-300 transition-all"
+                >
+                  Próximo
+                </button>
               </div>
-
-              {totalPages > 1 && (
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-[10px] text-zinc-400">
-                    {filteredFiles.length} arquivos
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      disabled={currentPage === 1}
-                      className="px-2.5 py-1.5 border border-zinc-200 dark:border-zinc-800 rounded-lg text-[10px] font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-850 disabled:opacity-50 cursor-pointer"
-                    >
-                      Anterior
-                    </button>
-                    <span className="text-[10px] text-zinc-500">
-                      {currentPage} / {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                      disabled={currentPage === totalPages}
-                      className="px-2.5 py-1.5 border border-zinc-200 dark:border-zinc-800 rounded-lg text-[10px] font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-850 disabled:opacity-50 cursor-pointer"
-                    >
-                      Próximo
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -1073,6 +1228,16 @@ export default function DocumentManagement() {
                 Fazer download
               </button>
               <button
+                onClick={async (e) => { 
+                  e.stopPropagation(); 
+                  await handleToggleFavorite(contextNode);
+                  setContextMenu(null);
+                }}
+                className="w-full text-left px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer border-t border-zinc-100 dark:border-zinc-800"
+              >
+                {contextNode.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+              </button>
+              <button
                 onClick={(e) => { e.stopPropagation(); setFileToDelete(contextNode); }}
                 className="w-full text-left px-3.5 py-2 text-xs hover:bg-red-50 dark:hover:bg-red-950/20 text-red-650 dark:text-red-400 font-semibold cursor-pointer border-t border-zinc-100 dark:border-zinc-800"
               >
@@ -1183,17 +1348,94 @@ export default function DocumentManagement() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-full max-w-4xl h-[90vh] rounded-2xl p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 flex flex-col">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3 gap-3 shrink-0">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-bold text-zinc-900 dark:text-white truncate">
                   Visualizando: {previewFileName}
                 </h3>
-                <p className="text-[10px] text-zinc-400 mt-0.5 truncate">
-                  Categoria: {resolveCategory(previewFile.category)?.label || 'Geral'}
-                </p>
+                <div className="flex items-center gap-4 mt-1 flex-wrap">
+                  <p className="text-[10px] text-zinc-400 truncate">
+                    Categoria: {resolveCategory(previewFile.category)?.label || 'Geral'}
+                  </p>
+                  <div className="flex items-center gap-1.5 text-[10px]">
+                    <span className="text-zinc-400 flex items-center gap-1">
+                      <Tag className="w-3 h-3 text-zinc-400" /> Tags:
+                    </span>
+                    {isEditingTags ? (
+                      <form onSubmit={handleSaveTags} className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={tempTags}
+                          onChange={e => setTempTags(e.target.value)}
+                          placeholder="tag1, tag2..."
+                          className="px-2 py-0.5 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded text-[9px] focus:outline-none focus:border-indigo-500 w-32 text-zinc-800 dark:text-zinc-200 font-semibold"
+                          autoFocus
+                        />
+                        <button
+                          type="submit"
+                          className="px-1.5 py-0.5 bg-indigo-600 text-white rounded text-[8px] font-bold hover:bg-indigo-700 cursor-pointer"
+                        >
+                          Salvar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingTags(false)}
+                          className="px-1.5 py-0.5 border border-zinc-200 dark:border-zinc-800 text-zinc-450 dark:text-zinc-400 rounded text-[8px] hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        {previewFile.tags ? (
+                          previewFile.tags.split(',').map((t, i) => {
+                            const trimmed = t.trim();
+                            if (!trimmed) return null;
+                            return (
+                              <span key={i} className="px-1.5 py-0.2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded text-[9px] font-medium border border-indigo-100/50 dark:border-indigo-900/30 animate-in fade-in duration-100">
+                                {trimmed}
+                              </span>
+                            );
+                          })
+                        ) : (
+                          <span className="text-zinc-400 italic">Sem tags</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTempTags(previewFile.tags || '');
+                            setIsEditingTags(true);
+                          }}
+                          className="text-[9px] font-bold text-indigo-500 hover:text-indigo-600 hover:underline cursor-pointer pl-1"
+                        >
+                          Editar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Action Toolbar */}
               <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                {/* Favorite (Star) Button */}
+                <button
+                  type="button"
+                  title={previewFile.favorite ? "Remover dos Favoritos" : "Adicionar aos Favoritos"}
+                  onClick={async () => {
+                    await handleToggleFavorite(previewFile);
+                    setPreviewFile(prev => prev ? { ...prev, favorite: !prev.favorite } : null);
+                  }}
+                  className={`p-1.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
+                    previewFile.favorite 
+                      ? 'bg-amber-50/50 dark:bg-amber-950/20 text-amber-500 border-amber-200 dark:border-amber-900/40 hover:bg-amber-100/60' 
+                      : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-650'
+                  }`}
+                >
+                  <Star className={`w-4 h-4 ${previewFile.favorite ? 'fill-amber-400' : ''}`} />
+                </button>
+
+                <div className="h-5 w-[1px] bg-zinc-200 dark:bg-zinc-800 mx-1 hidden sm:block" />
+
                 {/* Zoom Controls */}
                 <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1">
                   <button

@@ -12,6 +12,9 @@ import com.docintel.shared.infrastructure.storage.FileStorage;
 import com.docintel.user.application.UserService;
 import com.docintel.user.domain.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -135,7 +138,9 @@ public class DocumentService {
                     null,
                     rootDoc.getCategory(),
                     rootDoc.isAnalyzed(),
-                    List.of()
+                    List.of(),
+                    rootDoc.isFavorite(),
+                    rootDoc.getTags()
             ));
         }
 
@@ -166,7 +171,9 @@ public class DocumentService {
                     null,
                     doc.getCategory(),
                     doc.isAnalyzed(),
-                    List.of()
+                    List.of(),
+                    doc.isFavorite(),
+                    doc.getTags()
             ));
         }
 
@@ -178,7 +185,9 @@ public class DocumentService {
                 folder.getFolderVisibility(),
                 null,
                 false,
-                children
+                children,
+                false,
+                ""
         );
     }
 
@@ -273,6 +282,36 @@ public class DocumentService {
         for (Folder sub : subfolders) {
             zipFolder(sub.getId(), zos, currentPath + sub.getName() + "/");
         }
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Document> searchDocuments(
+            String search, String categoryStr, Boolean favorite, String tag, int page, int size
+    ) {
+        User currentUser = currentUserProvider.getCurrentUser();
+        DocumentCategory category = DocumentCategory.fromString(categoryStr);
+        Pageable pageable = PageRequest.of(page, size);
+        
+        String searchParam = (search == null || search.trim().isEmpty()) ? null : "%" + search.trim().toLowerCase() + "%";
+        String tagParam = (tag == null || tag.trim().isEmpty()) ? null : "%" + tag.trim().toLowerCase() + "%";
+
+        return documentRepository.searchDocuments(
+                currentUser.getId(), searchParam, category, favorite, tagParam, pageable
+        );
+    }
+
+    @Transactional
+    public Document toggleFavorite(UUID documentId) {
+        Document document = getDocument(documentId);
+        document.setFavorite(!document.isFavorite());
+        return documentRepository.save(document);
+    }
+
+    @Transactional
+    public Document updateTags(UUID documentId, String tags) {
+        Document document = getDocument(documentId);
+        document.setTags(tags != null ? tags.trim() : "");
+        return documentRepository.save(document);
     }
 }
 

@@ -8,6 +8,7 @@ public record DocumentDTO(
         UUID id, String name,
         String s3Key, UUID folderId,
         UUID ownerId, String agentAnalysis,
-        boolean analyzed, DocumentCategory category
+        boolean analyzed, DocumentCategory category,
+        boolean favorite, String tags
 ) {
 }

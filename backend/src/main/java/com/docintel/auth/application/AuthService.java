@@ -1,15 +1,15 @@
 package com.docintel.auth.application;
 
-import com.docintel.auth.domain.RefreshToken;
-import com.docintel.auth.domain.RefreshTokenRepository;
+import com.docintel.auth.domain.jwt.RefreshToken;
+import com.docintel.auth.domain.jwt.RefreshTokenRepository;
 import com.docintel.auth.infrastructure.exception.EmailAlreadyInUseException;
 import com.docintel.auth.infrastructure.exception.InvalidCredentialsException;
 import com.docintel.auth.infrastructure.exception.InvalidRefreshTokenException;
 import com.docintel.auth.presentation.dto.*;
-import com.docintel.auth.domain.PasswordResetToken;
-import com.docintel.auth.domain.PasswordResetTokenRepository;
-import com.docintel.auth.domain.EmailVerificationToken;
-import com.docintel.auth.domain.EmailVerificationTokenRepository;
+import com.docintel.auth.domain.password.PasswordResetToken;
+import com.docintel.auth.domain.password.PasswordResetTokenRepository;
+import com.docintel.auth.domain.email.EmailVerificationToken;
+import com.docintel.auth.domain.email.EmailVerificationTokenRepository;
 import com.docintel.shared.infrastructure.email.EmailSender;
 import com.docintel.user.domain.User;
 import com.docintel.user.domain.UserRepository;

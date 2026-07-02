@@ -1,4 +1,4 @@
-package com.docintel.auth.domain;
+package com.docintel.auth.domain.jwt;
 
 import com.docintel.user.domain.User;
 import jakarta.persistence.*;
@@ -17,8 +17,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "password_reset_tokens")
-public class PasswordResetToken {
+@Table(name = "refresh_tokens")
+public class RefreshToken {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -36,4 +36,6 @@ public class PasswordResetToken {
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+
 }

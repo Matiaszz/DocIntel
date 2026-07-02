@@ -12,6 +12,7 @@ import com.docintel.shared.infrastructure.security.CurrentUserProvider;
 import com.docintel.user.application.UserService;
 import com.docintel.user.domain.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.MediaTypeFactory;
@@ -58,7 +59,9 @@ public class DocumentController {
                 document.getOwner().getId(),
                 null,
                 false,
-                document.getCategory()
+                document.getCategory(),
+                document.isFavorite(),
+                document.getTags()
         ));
     }
 
@@ -178,6 +181,71 @@ public class DocumentController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + folderName + ".zip\"")
                 .contentType(MediaType.parseMediaType("application/zip"))
                 .body(responseBody);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<Page<DocumentDTO>> searchDocuments(
+            @RequestParam(value = "search", required = false) String search,
+            @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "favorite", required = false) Boolean favorite,
+            @RequestParam(value = "tag", required = false) String tag,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size
+    ) {
+        Page<Document> result = documentService.searchDocuments(
+                search, category, favorite, tag, page, size
+        );
+        Page<DocumentDTO> dtoPage = result.map(doc -> new DocumentDTO(
+                doc.getId(),
+                doc.getName(),
+                doc.getS3Key(),
+                doc.getFolder() != null ? doc.getFolder().getId() : null,
+                doc.getOwner().getId(),
+                doc.getAgentAnalysis(),
+                doc.isAnalyzed(),
+                doc.getCategory(),
+                doc.isFavorite(),
+                doc.getTags()
+        ));
+        return ResponseEntity.ok(dtoPage);
+    }
+
+    @PutMapping("/{id}/favorite")
+    public ResponseEntity<DocumentDTO> toggleFavorite(@PathVariable UUID id) {
+        Document document = documentService.toggleFavorite(id);
+        return ResponseEntity.ok(new DocumentDTO(
+                document.getId(),
+                document.getName(),
+                document.getS3Key(),
+                document.getFolder() != null ? document.getFolder().getId() : null,
+                document.getOwner().getId(),
+                document.getAgentAnalysis(),
+                document.isAnalyzed(),
+                document.getCategory(),
+                document.isFavorite(),
+                document.getTags()
+        ));
+    }
+
+    @PutMapping("/{id}/tags")
+    public ResponseEntity<DocumentDTO> updateTags(@PathVariable UUID id, @RequestBody String tags) {
+        String cleanTags = tags;
+        if (tags != null && (tags.startsWith("\"") && tags.endsWith("\"") || tags.startsWith("'") && tags.endsWith("'"))) {
+            cleanTags = tags.substring(1, tags.length() - 1);
+        }
+        Document document = documentService.updateTags(id, cleanTags);
+        return ResponseEntity.ok(new DocumentDTO(
+                document.getId(),
+                document.getName(),
+                document.getS3Key(),
+                document.getFolder() != null ? document.getFolder().getId() : null,
+                document.getOwner().getId(),
+                document.getAgentAnalysis(),
+                document.isAnalyzed(),
+                document.getCategory(),
+                document.isFavorite(),
+                document.getTags()
+        ));
     }
 }
 

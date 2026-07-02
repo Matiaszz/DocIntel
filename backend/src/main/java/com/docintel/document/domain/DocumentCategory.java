@@ -70,7 +70,14 @@ public enum DocumentCategory {
     }
 
     public static DocumentCategory fromString(String categoryName) {
-        return DocumentCategory.valueOf(categoryName.toUpperCase());
+        if (categoryName == null || categoryName.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return DocumentCategory.valueOf(categoryName.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     public static String aiClassificationPrompt() {

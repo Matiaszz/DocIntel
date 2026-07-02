@@ -46,6 +46,8 @@ Legenda:
 ## ☁️ Cloud
 
 - ✅ AWS S3
+- ✅ AWS SES
+- ⏳ AWS RDS/AURORA
 - ✅ Upload direto
 - ✅ Exclusão de arquivos
 
@@ -53,11 +55,11 @@ Legenda:
 
 ## 🔎 Organização
 
-- ⏳ Pesquisa textual
-- ⏳ Tags
-- ⏳ Favoritos
-- ⏳ Paginação
-- ⏳ Filtros
+- ✅ Pesquisa textual
+- ✅ Tags
+- ✅ Favoritos
+- ✅ Paginação
+- ✅ Filtros
 
 ---
 
@@ -108,7 +110,7 @@ Legenda:
 | Usuários | 🚧 |
 | Documentos | 🚧 |
 | Cloud | ✅ |
-| Organização | ⏳ |
+| Organização | ✅ |
 | IA | ⏳ |
 | Escalabilidade | ⏳ |
 | Observabilidade | ⏳ |

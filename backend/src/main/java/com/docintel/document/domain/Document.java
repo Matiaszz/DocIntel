@@ -41,6 +41,10 @@ public class Document implements Persistable<UUID> {
 
     private String agentAnalysis = null;
 
+    private boolean favorite = false;
+
+    private String tags = "";
+
     @Transient
     private boolean isNew = true;
 

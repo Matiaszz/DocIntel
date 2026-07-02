@@ -1,4 +1,4 @@
-package com.docintel.auth.domain;
+package com.docintel.auth.domain.email;
 
 import com.docintel.user.domain.User;
 import jakarta.persistence.*;
@@ -17,8 +17,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "refresh_tokens")
-public class RefreshToken {
+@Table(name = "email_verification_tokens")
+public class EmailVerificationToken {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -36,6 +36,4 @@ public class RefreshToken {
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
-
-
 }

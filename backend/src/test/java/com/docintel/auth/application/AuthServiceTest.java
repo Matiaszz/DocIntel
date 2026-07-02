@@ -1,10 +1,10 @@
 package com.docintel.auth.application;
 
-import com.docintel.auth.domain.RefreshTokenRepository;
-import com.docintel.auth.domain.PasswordResetTokenRepository;
-import com.docintel.auth.domain.EmailVerificationTokenRepository;
-import com.docintel.auth.domain.EmailVerificationToken;
-import com.docintel.auth.domain.PasswordResetToken;
+import com.docintel.auth.domain.jwt.RefreshTokenRepository;
+import com.docintel.auth.domain.password.PasswordResetTokenRepository;
+import com.docintel.auth.domain.email.EmailVerificationTokenRepository;
+import com.docintel.auth.domain.email.EmailVerificationToken;
+import com.docintel.auth.domain.password.PasswordResetToken;
 import com.docintel.auth.presentation.dto.ForgotPasswordRequest;
 import com.docintel.auth.presentation.dto.ResetPasswordRequest;
 import com.docintel.shared.infrastructure.email.EmailSender;
