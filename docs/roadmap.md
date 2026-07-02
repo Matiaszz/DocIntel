@@ -48,7 +48,7 @@ Legenda:
 
 ---
 
-## Sprint 3 — Documentos ⏳
+## Sprint 3 — Documentos 🚧
 
 ### Upload
 - ✅ Upload de arquivos
@@ -63,7 +63,7 @@ Legenda:
 
 ---
 
-## Sprint 4 — Cloud Storage ⏳
+## Sprint 4 — Cloud Storage 🚧
 
 - ✅ S3 Storage
 - ⏳ URLs assinadas
@@ -72,7 +72,7 @@ Legenda:
 
 ---
 
-## Sprint 5 — Compartilhamento ⏳
+## Sprint 5 — Compartilhamento 🚧
 
 - ⏳ Compartilhar documentos
 - ⏳ Links públicos
@@ -119,14 +119,14 @@ Legenda:
 
 ---
 
-## Sprint 10 — Testes e Deploy ⏳
+## Sprint 10 — Testes e Deploy 🚧
 
 ### Testes
 - ✅ JUnit
 - ⏳ Testes de integração
 
 ### DevOps
-- ⏳ Docker Compose
+- ✅ Docker Compose
 - ⏳ GitHub Actions
 - ⏳ Deploy em Cloud
 - ⏳ CI/CD
@@ -142,9 +142,9 @@ Legenda:
 | Usuários | 🚧 |
 | Documentos | 🚧 |
 | Cloud | 🚧 |
-| Compartilhamento | ⏳ |
+| Compartilhamento | 🚧 |
 | IA | ⏳ |
 | Escalabilidade | ⏳ |
 | Observabilidade | ⏳ |
-| Testes | ⏳ |
+| Testes | 🚧 |
 | Deploy | ⏳ |

@@ -21,7 +21,8 @@ import {
   Trash2,
   ZoomIn,
   ZoomOut,
-  RotateCcw
+  RotateCcw,
+  X
 } from 'lucide-react';
 import { fetchClient, getAccessToken } from '../../lib/api';
 import { useCategories } from '../../hooks/useCategories';
@@ -57,9 +58,17 @@ export default function DocumentManagement() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadCategory, setUploadCategory] = useState('GENERAL');
   const [showUploadCategoryDropdown, setShowUploadCategoryDropdown] = useState(false);
+  const [categorySearchQuery, setCategorySearchQuery] = useState('');
   const [uploadProgress, setUploadProgress] = useState(false);
 
   const { categories, resolveCategory, getBadgeColor } = useCategories();
+
+  const filteredCategories = useMemo(() => {
+    return categories.filter(cat => 
+      cat.label.toLowerCase().includes(categorySearchQuery.toLowerCase()) ||
+      (cat.description && cat.description.toLowerCase().includes(categorySearchQuery.toLowerCase()))
+    );
+  }, [categories, categorySearchQuery]);
 
   // Right-click and file preview / delete states
   const [contextMenu, setContextMenu] = useState<{ 
@@ -71,8 +80,9 @@ export default function DocumentManagement() {
   const [previewFile, setPreviewFile] = useState<TreeNode | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [successModal, setSuccessModal] = useState<{
+  const [feedbackModal, setFeedbackModal] = useState<{
     isOpen: boolean;
+    type: 'success' | 'error';
     title: string;
     message: string;
   } | null>(null);
@@ -80,6 +90,51 @@ export default function DocumentManagement() {
   const [zoomScale, setZoomScale] = useState(100);
   const [folderToDelete, setFolderToDelete] = useState<TreeNode | null>(null);
   const [fileToDelete, setFileToDelete] = useState<TreeNode | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!uploadFile) {
+      setUploadPreviewUrl(null);
+      return;
+    }
+
+    if (uploadFile.type.startsWith('image/')) {
+      const url = URL.createObjectURL(uploadFile);
+      setUploadPreviewUrl(url);
+
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    } else {
+      setUploadPreviewUrl(null);
+    }
+  }, [uploadFile]);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setUploadFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const closeUploadModal = () => {
+    setUploadFile(null);
+    setShowUploadModal(false);
+    setCategorySearchQuery('');
+  };
 
   // Close context menu on any document click
   useEffect(() => {
@@ -194,8 +249,9 @@ export default function DocumentManagement() {
       });
       await fetchTree();
       setFileToDelete(null);
-      setSuccessModal({
+      setFeedbackModal({
         isOpen: true,
+        type: 'success',
         title: 'Documento Excluído',
         message: 'O documento foi excluído com sucesso!'
       });
@@ -216,8 +272,9 @@ export default function DocumentManagement() {
       setSelectedFolderId(null);
       await fetchTree();
       setFolderToDelete(null);
-      setSuccessModal({
+      setFeedbackModal({
         isOpen: true,
+        type: 'success',
         title: 'Pasta Excluída',
         message: 'A pasta e todos os seus documentos foram excluídos com sucesso!'
       });
@@ -281,6 +338,7 @@ export default function DocumentManagement() {
     if (!uploadFile) return;
 
     setUploadProgress(true);
+    const fileName = uploadFile.name;
     try {
       const formData = new FormData();
       formData.append('file', uploadFile);
@@ -294,12 +352,22 @@ export default function DocumentManagement() {
         body: formData
       });
 
-      setUploadFile(null);
-      setShowUploadModal(false);
+      closeUploadModal();
       await fetchTree();
+      setFeedbackModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Upload Concluído',
+        message: `O arquivo "${fileName}" foi enviado com sucesso!`
+      });
     } catch (err) {
       console.error(err);
-      setError('Falha ao enviar arquivo.');
+      setFeedbackModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Falha no Upload',
+        message: `Ocorreu um erro ao enviar o arquivo "${fileName}". Por favor, tente novamente.`
+      });
     } finally {
       setUploadProgress(false);
     }
@@ -780,15 +848,84 @@ export default function DocumentManagement() {
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-full max-w-md rounded-2xl p-6 shadow-xl space-y-4 animate-in zoom-in-95 duration-150">
             <h3 className="text-base font-bold text-zinc-900 dark:text-white">Fazer Upload de Documento</h3>
             <form onSubmit={handleFileUpload} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-zinc-500">Arquivo</label>
-                <input
-                  type="file"
-                  required
-                  onChange={e => setUploadFile(e.target.files?.[0] || null)}
-                  className="w-full text-xs file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 dark:file:bg-indigo-950/30 file:text-indigo-600 dark:file:text-indigo-400 hover:file:bg-indigo-100 cursor-pointer"
-                />
-              </div>
+              {!uploadFile ? (
+                <div className="space-y-1.5 animate-in fade-in duration-200">
+                  <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Arquivo</label>
+                  <div 
+                    onDragEnter={handleDrag}
+                    onDragOver={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDrop={handleDrop}
+                    onClick={() => document.getElementById('file-upload-input')?.click()}
+                    className={`border-2 border-dashed rounded-2xl p-7 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3 relative overflow-hidden group ${
+                      dragActive 
+                        ? 'border-indigo-500 bg-indigo-50/30 dark:bg-indigo-950/20' 
+                        : 'border-zinc-200 dark:border-zinc-800 hover:border-indigo-500/50 dark:hover:border-indigo-500/30 bg-zinc-50/50 dark:bg-zinc-950/20'
+                    }`}
+                  >
+                    <input
+                      id="file-upload-input"
+                      type="file"
+                      required
+                      className="hidden"
+                      onChange={e => setUploadFile(e.target.files?.[0] || null)}
+                    />
+                    <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Upload className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                        Arraste e solte o arquivo aqui
+                      </p>
+                      <p className="text-[10px] text-zinc-400">
+                        ou clique para navegar no seu computador
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5 animate-in fade-in duration-200">
+                  <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Arquivo Selecionado</label>
+                  <div className="border border-zinc-200 dark:border-zinc-850 rounded-2xl p-4 bg-zinc-50/50 dark:bg-zinc-950/20 flex items-center justify-between gap-3 relative">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {uploadFile.type.startsWith('image/') && uploadPreviewUrl ? (
+                        <div className="w-12 h-12 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shrink-0 bg-white dark:bg-zinc-900 flex items-center justify-center">
+                          <img 
+                            src={uploadPreviewUrl} 
+                            alt="preview" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                          <FileText className="w-6 h-6" />
+                        </div>
+                      )}
+                      
+                      <div className="min-w-0 text-left">
+                        <p className="text-xs font-bold text-zinc-805 dark:text-zinc-200 truncate max-w-[200px]">
+                          {uploadFile.name}
+                        </p>
+                        <p className="text-[10px] text-zinc-400">
+                          {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setUploadFile(null);
+                      }}
+                      className="p-2 hover:bg-red-50 dark:hover:bg-red-950/20 text-zinc-400 hover:text-red-500 dark:text-zinc-500 rounded-xl transition-all cursor-pointer"
+                      title="Remover arquivo"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Custom Category Selection Dropdown */}
               <div className="space-y-1.5 relative">
@@ -823,32 +960,57 @@ export default function DocumentManagement() {
                 </button>
                 
                 {showUploadCategoryDropdown && (
-                  <div className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden max-h-[200px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-200 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-300">
-                    {categories.map(cat => (
-                      <div
-                        key={cat.id}
-                        onClick={() => {
-                          setUploadCategory(cat.id);
-                          setShowUploadCategoryDropdown(false);
-                        }}
-                        className="flex flex-col gap-0.5 px-3 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer text-zinc-700 dark:text-zinc-300 animate-in fade-in duration-100"
-                      >
-                        <div className="flex items-center gap-2 font-semibold">
-                          <span className={`w-2.5 h-2.5 rounded-full ${
-                            cat.color === 'emerald' ? 'bg-emerald-500' :
-                            cat.color === 'blue' ? 'bg-blue-500' :
-                            cat.color === 'purple' ? 'bg-purple-500' :
-                            cat.color === 'rose' ? 'bg-rose-500' :
-                            cat.color === 'amber' ? 'bg-amber-500' : 'bg-zinc-400'
-                          }`} />
-                          <span>{cat.label}</span>
-                          <span className="text-[9px] font-normal text-zinc-400 dark:text-zinc-500 px-1.5 py-0.2 bg-zinc-100 dark:bg-zinc-800 rounded">
-                            {cat.type}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 pl-4">{cat.description}</span>
+                  <div className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg overflow-hidden max-h-[260px] flex flex-col animate-in fade-in slide-in-from-top-1 duration-150">
+                    {/* Search Input Box */}
+                    <div className="p-2 bg-zinc-50 dark:bg-zinc-950/60 border-b border-zinc-150 dark:border-zinc-800 shrink-0">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400" />
+                        <input
+                          type="text"
+                          placeholder="Pesquisar categoria..."
+                          value={categorySearchQuery}
+                          onChange={e => setCategorySearchQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 text-xs border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg focus:outline-none focus:border-indigo-500 text-zinc-700 dark:text-zinc-300"
+                          onClick={e => e.stopPropagation()} // prevent closing dropdown
+                        />
                       </div>
-                    ))}
+                    </div>
+
+                    {/* Scrollable list of filtered categories */}
+                    <div className="overflow-y-auto max-h-[200px] divide-y divide-zinc-100 dark:divide-zinc-800 flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-200 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-300">
+                      {filteredCategories.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-zinc-400">
+                          Nenhuma categoria encontrada
+                        </div>
+                      ) : (
+                        filteredCategories.map(cat => (
+                          <div
+                            key={cat.id}
+                            onClick={() => {
+                              setUploadCategory(cat.id);
+                              setShowUploadCategoryDropdown(false);
+                              setCategorySearchQuery('');
+                            }}
+                            className="flex flex-col gap-0.5 px-3 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer text-zinc-700 dark:text-zinc-300 transition-colors"
+                          >
+                            <div className="flex items-center gap-2 font-semibold">
+                              <span className={`w-2.5 h-2.5 rounded-full ${
+                                cat.color === 'emerald' ? 'bg-emerald-500' :
+                                cat.color === 'blue' ? 'bg-blue-500' :
+                                cat.color === 'purple' ? 'bg-purple-500' :
+                                cat.color === 'rose' ? 'bg-rose-500' :
+                                cat.color === 'amber' ? 'bg-amber-500' : 'bg-zinc-400'
+                              }`} />
+                              <span>{cat.label}</span>
+                              <span className="text-[9px] font-normal text-zinc-400 dark:text-zinc-500 px-1.5 py-0.2 bg-zinc-100 dark:bg-zinc-800 rounded">
+                                {cat.type}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 pl-4">{cat.description}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -856,7 +1018,7 @@ export default function DocumentManagement() {
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowUploadModal(false)}
+                  onClick={closeUploadModal}
                   className="px-4 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer"
                 >
                   Cancelar
@@ -1135,15 +1297,15 @@ export default function DocumentManagement() {
         </div>
       )}
 
-      {/* SUCCESS MODAL */}
-      {successModal && (
+      {/* FEEDBACK MODAL (Success/Error) */}
+      {feedbackModal && (
         <FeedbackModal
-          isOpen={successModal.isOpen}
-          type="success"
-          title={successModal.title}
-          message={successModal.message}
+          isOpen={feedbackModal.isOpen}
+          type={feedbackModal.type}
+          title={feedbackModal.title}
+          message={feedbackModal.message}
           confirmLabel="Ok, entendi"
-          onClose={() => setSuccessModal(null)}
+          onClose={() => setFeedbackModal(null)}
         />
       )}
     </div>
