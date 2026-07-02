@@ -1,6 +1,6 @@
-# 🚀 Roadmap
+# 🚀 DocIntel — Desenvolvimento
 
-> Status atual do desenvolvimento do DocIntel.
+>Status atual do projeto.
 
 Legenda:
 - ✅ Concluído
@@ -9,131 +9,97 @@ Legenda:
 
 ---
 
-## Sprint 1 — Fundação da API ✅
+## 🔐 Autenticação
 
-### Projeto
-- ✅ Estrutura modular (Clean Architecture)
-- ✅ Configuração do Spring Boot
-- ✅ PostgreSQL
-- ✅ Flyway
-- ✅ Docker (opcional, se já fez)
-- ✅ Tratamento global de exceções
-- ✅ Documentação Swagger/OpenAPI
-
-### Autenticação
 - ✅ Cadastro de usuários
 - ✅ Login
-- ✅ JWT Access Token
-- ✅ Refresh Token
+- ✅ JWT (Access + Refresh Token)
 - ✅ Logout
 - ✅ Revogação de tokens
-- ✅ Spring Security
 - ✅ Cookies HttpOnly
-- ✅ Validação de credenciais
-
----
-
-## Sprint 2 — Gestão de Usuários 🚧
-
-### Conta
-- ✅ Atualizar perfil
-- ✅ Alterar senha
-- ✅ Recuperação de senha por e-mail
+- ✅ Recuperação de senha
 - ✅ Verificação de e-mail
 
-### Segurança
+---
+
+## 👤 Usuários
+
+- ✅ Atualização de perfil
+- ✅ Alteração de senha
+- 🚧 Auditoria
 - ⏳ Rate Limiting
-- ⏳ Auditoria
-- ⏳ Logs estruturados
 
 ---
 
-## Sprint 3 — Documentos 🚧
+## 📁 Documentos
 
-### Upload
-- ✅ Upload de arquivos
+- ✅ Upload
 - ✅ Download
 - ✅ Exclusão
-- ⏳ Versionamento
-
-### Banco
-- ⏳ Metadados dos documentos
-- ⏳ Histórico
-- ⏳ Soft Delete
-
----
-
-## Sprint 4 — Cloud Storage 🚧
-
-- ✅ S3 Storage
-- ⏳ URLs assinadas
-- ✅ Upload direto
-- ✅ Exclusão em nuvem
-
----
-
-## Sprint 5 — Compartilhamento 🚧
-
-- ⏳ Compartilhar documentos
+- 🚧 Compartilhamento de pastas
+- 🚧 Permissões (Viewer, Editor e Admin)
 - ⏳ Links públicos
 - ⏳ Expiração de links
-- ✅ Permissões (Viewer/Editor/Admin)
 
 ---
 
-## Sprint 6 — Pesquisa e Organização ⏳
+## ☁️ Cloud
 
+- ✅ AWS S3
+- ✅ Upload direto
+- ✅ Exclusão de arquivos
+
+---
+
+## 🔎 Organização
+
+- ⏳ Pesquisa textual
 - ⏳ Tags
 - ⏳ Favoritos
-- ⏳ Pesquisa textual
 - ⏳ Paginação
 - ⏳ Filtros
 
 ---
 
-## Sprint 7 — IA e OCR ⏳
+## 🤖 Inteligência Artificial
 
 - ⏳ OCR
+- ⏳ Classificação automática
 - ⏳ Extração de informações
-- ⏳ Resumo por IA
+- ⏳ Resumo de documentos
 - ⏳ Chat com documentos
 
 ---
 
-## Sprint 8 — Escalabilidade ⏳
+## ⚡ Escalabilidade
 
 - ⏳ Redis
 - ⏳ Cache
-- ⏳ RabbitMQ/Kafka
+- ⏳ RabbitMQ
 - ⏳ Processamento assíncrono
 
 ---
 
-## Sprint 9 — Observabilidade ⏳
+## 📊 Observabilidade
 
 - ⏳ Spring Actuator
 - ⏳ Prometheus
 - ⏳ Grafana
 - ⏳ OpenTelemetry
-- ⏳ Tracing
 
 ---
 
-## Sprint 10 — Testes e Deploy 🚧
+## 🧪 Qualidade
 
-### Testes
-- ✅ JUnit
+- ✅ Testes unitários
 - ⏳ Testes de integração
-
-### DevOps
-- ✅ Docker Compose
 - ⏳ GitHub Actions
-- ⏳ Deploy em Cloud
 - ⏳ CI/CD
+- ⏳ Deploy em Cloud
 
 ---
 
-# 📈 Progresso Geral
+# 📈 Status Geral
 
 | Área | Status |
 |------|--------|
@@ -141,10 +107,9 @@ Legenda:
 | Autenticação | ✅ |
 | Usuários | 🚧 |
 | Documentos | 🚧 |
-| Cloud | 🚧 |
-| Compartilhamento | 🚧 |
+| Cloud | ✅ |
+| Organização | ⏳ |
 | IA | ⏳ |
 | Escalabilidade | ⏳ |
 | Observabilidade | ⏳ |
-| Testes | 🚧 |
-| Deploy | ⏳ |
+| Qualidade | 🚧 |
