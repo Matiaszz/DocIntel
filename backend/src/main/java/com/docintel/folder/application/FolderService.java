@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.util.HtmlUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -48,7 +49,7 @@ public class FolderService {
         int folderCount = isFile ? parts.length - 1 : parts.length;
 
         for (int i = 0; i < folderCount; i++) {
-            String folderName = org.springframework.web.util.HtmlUtils.htmlEscape(parts[i]);
+            String folderName = HtmlUtils.htmlEscape(parts[i]);
             if (folderName.trim().isEmpty()) continue;
             if (parts[i].equals(".") || parts[i].equals("..")) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid path segment.");

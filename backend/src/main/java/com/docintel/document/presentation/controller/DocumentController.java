@@ -129,8 +129,8 @@ public class DocumentController {
         };
 
         return ResponseEntity.ok()
-                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + doc.getName() + "\"")
-                .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + doc.getName() + "\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(responseBody);
     }
 
