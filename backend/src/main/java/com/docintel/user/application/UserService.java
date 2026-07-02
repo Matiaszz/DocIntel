@@ -44,4 +44,8 @@ public class UserService {
 
         return userRepository.save(currentUser);
     }
+
+    public User getCurrentUser(){
+        return  userProvider.getCurrentUser();
+    }
 }

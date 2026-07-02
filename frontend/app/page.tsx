@@ -5,14 +5,12 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../hooks/useAuth";
 import {
   FolderOpen,
-  Clock,
   FileSearch,
   ArrowRight,
   ArrowLeft,
 } from "lucide-react";
 import Header from "../components/dashboard/Header";
 import WelcomeBanner from "../components/dashboard/WelcomeBanner";
-import StatsCard from "../components/dashboard/StatsCard";
 import DocumentAnalysis from "../components/dashboard/DocumentAnalysis";
 import DocumentManagement from "../components/dashboard/DocumentManagement";
 import SettingsModal from "../components/dashboard/SettingsModal";
@@ -70,8 +68,12 @@ export default function Home() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">
-        <WelcomeBanner user={user} />
+      <main className={`flex-1 w-full mx-auto animate-in fade-in duration-300 ${
+        selectedModule !== null 
+          ? "max-w-none px-4 sm:px-6 lg:px-8 py-4 flex flex-col min-h-0 h-[calc(100vh-64px)]" 
+          : "max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-8"
+      }`}>
+        {selectedModule === null && <WelcomeBanner user={user} />}
 
         {/* 1. MODULES SELECTOR (Default home view) */}
         {selectedModule === null ? (
@@ -150,9 +152,9 @@ export default function Home() {
           </div>
         ) : selectedModule === "analise" ? (
           /* 2. ACTIVE MODULE CONTENT (Análise de Documentos) */
-          <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
+          <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col min-h-0">
             {/* Breadcrumb / Nav */}
-            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4 shrink-0">
               <button
                 onClick={() => setSelectedModule(null)}
                 className="inline-flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer group"
@@ -165,31 +167,16 @@ export default function Home() {
               </span>
             </div>
 
-            {/* Dashboard Stats */}
-            <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <StatsCard
-                icon={<FolderOpen className="w-6 h-6" />}
-                label="Total de Arquivos"
-                value="4"
-              />
-              <StatsCard
-                icon={<Clock className="w-6 h-6" />}
-                iconBgClass="bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400"
-                label="Análise Concluída"
-                value="4"
-              />
-            </section>
-
             {/* Workspace Operations */}
-            <div className="max-w-4xl mx-auto w-full">
+            <div className="w-full flex-1 flex flex-col min-h-0">
               <DocumentAnalysis />
             </div>
           </div>
         ) : (
           /* 3. ACTIVE MODULE CONTENT (Gestão de Documentos) */
-          <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
+          <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col min-h-0">
             {/* Breadcrumb / Nav */}
-            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4 shrink-0">
               <button
                 onClick={() => setSelectedModule(null)}
                 className="inline-flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer group"
@@ -205,7 +192,7 @@ export default function Home() {
 
 
             {/* Workspace Operations */}
-            <div className="max-w-4xl mx-auto w-full">
+            <div className="w-full flex-1 flex flex-col min-h-0">
               <DocumentManagement />
             </div>
           </div>

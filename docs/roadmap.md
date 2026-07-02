@@ -36,7 +36,7 @@ Legenda:
 ## Sprint 2 — Gestão de Usuários 🚧
 
 ### Conta
-- ⏳ Atualizar perfil
+- ✅ Atualizar perfil
 - ⏳ Alterar senha
 - ⏳ Recuperação de senha por e-mail
 - ⏳ Verificação de e-mail
@@ -51,9 +51,9 @@ Legenda:
 ## Sprint 3 — Documentos ⏳
 
 ### Upload
-- ⏳ Upload de arquivos
-- ⏳ Download
-- ⏳ Exclusão
+- ✅ Upload de arquivos
+- ✅ Download
+- ✅ Exclusão
 - ⏳ Versionamento
 
 ### Banco
@@ -65,10 +65,10 @@ Legenda:
 
 ## Sprint 4 — Cloud Storage ⏳
 
-- ⏳ Azure Blob Storage
+- ✅ S3 Storage
 - ⏳ URLs assinadas
-- ⏳ Upload direto
-- ⏳ Exclusão em nuvem
+- ✅ Upload direto
+- ✅ Exclusão em nuvem
 
 ---
 
@@ -77,7 +77,7 @@ Legenda:
 - ⏳ Compartilhar documentos
 - ⏳ Links públicos
 - ⏳ Expiração de links
-- ⏳ Permissões (Viewer/Editor/Admin)
+- ✅ Permissões (Viewer/Editor/Admin)
 
 ---
 
@@ -122,9 +122,7 @@ Legenda:
 ## Sprint 10 — Testes e Deploy ⏳
 
 ### Testes
-- ⏳ JUnit
-- ⏳ Mockito
-- ⏳ Testcontainers
+- ✅ JUnit
 - ⏳ Testes de integração
 
 ### DevOps
@@ -142,8 +140,8 @@ Legenda:
 | Arquitetura | ✅ |
 | Autenticação | ✅ |
 | Usuários | 🚧 |
-| Documentos | ⏳ |
-| Cloud | ⏳ |
+| Documentos | 🚧 |
+| Cloud | 🚧 |
 | Compartilhamento | ⏳ |
 | IA | ⏳ |
 | Escalabilidade | ⏳ |

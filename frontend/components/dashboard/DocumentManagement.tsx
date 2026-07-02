@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { fetchClient, getAccessToken } from '../../lib/api';
 import { useCategories } from '../../hooks/useCategories';
+import FeedbackModal from './FeedbackModal';
 
 interface TreeNode {
   id: string;
@@ -56,9 +57,20 @@ export default function DocumentManagement() {
   const { categories, resolveCategory, getBadgeColor } = useCategories();
 
   // Right-click and file preview / delete states
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: TreeNode } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ 
+    x: number; 
+    y: number; 
+    node: TreeNode | null; 
+    type?: 'node' | 'empty';
+  } | null>(null);
   const [previewFile, setPreviewFile] = useState<TreeNode | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [successModal, setSuccessModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+  } | null>(null);
   const [previewFileName, setPreviewFileName] = useState<string>('');
   const [folderToDelete, setFolderToDelete] = useState<TreeNode | null>(null);
   const [fileToDelete, setFileToDelete] = useState<TreeNode | null>(null);
@@ -76,7 +88,18 @@ export default function DocumentManagement() {
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
-      node
+      node,
+      type: 'node'
+    });
+  };
+
+  const handleEmptyContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      node: null,
+      type: 'empty'
     });
   };
 
@@ -158,34 +181,44 @@ export default function DocumentManagement() {
 
   const handleDeleteDocument = async (id: string) => {
     try {
-      setLoading(true);
+      setIsDeleting(true);
       await fetchClient.internal.request(`/api/documents/${id}`, {
         method: 'DELETE'
       });
-      setFileToDelete(null);
       await fetchTree();
+      setFileToDelete(null);
+      setSuccessModal({
+        isOpen: true,
+        title: 'Documento Excluído',
+        message: 'O documento foi excluído com sucesso!'
+      });
     } catch (err) {
       console.error(err);
       setError('Falha ao excluir o documento.');
     } finally {
-      setLoading(false);
+      setIsDeleting(false);
     }
   };
 
   const handleDeleteFolder = async (id: string) => {
     try {
-      setLoading(true);
+      setIsDeleting(true);
       await fetchClient.internal.request(`/api/documents/folders/${id}`, {
         method: 'DELETE'
       });
-      setFolderToDelete(null);
       setSelectedFolderId(null);
       await fetchTree();
+      setFolderToDelete(null);
+      setSuccessModal({
+        isOpen: true,
+        title: 'Pasta Excluída',
+        message: 'A pasta e todos os seus documentos foram excluídos com sucesso!'
+      });
     } catch (err) {
       console.error(err);
       setError('Falha ao excluir a pasta.');
     } finally {
-      setLoading(false);
+      setIsDeleting(false);
     }
   };
 
@@ -347,8 +380,10 @@ export default function DocumentManagement() {
     }
   };
 
+  const contextNode = contextMenu?.node;
+
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl shadow-sm flex flex-col md:flex-row overflow-hidden min-h-[500px] transition-all duration-300">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl shadow-sm flex flex-col md:flex-row overflow-hidden flex-1 min-h-0 w-full transition-all duration-300">
       
       {/* SIDEBAR (Mac Finder Style) */}
       <aside className="w-full md:w-52 bg-zinc-50/60 dark:bg-zinc-950/60 border-b md:border-b-0 md:border-r border-zinc-200 dark:border-zinc-800/80 p-4 shrink-0 flex flex-col justify-between">
@@ -438,10 +473,10 @@ export default function DocumentManagement() {
       </aside>
 
       {/* MAIN CONTAINER */}
-      <main className="flex-1 flex flex-col justify-between p-6">
-        <div className="space-y-5">
+      <main className="flex-1 flex flex-col justify-between p-6 min-h-0">
+        <div className="space-y-5 flex-1 flex flex-col min-h-0">
           {/* Top Bar Navigation / Breadcrumbs */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-zinc-100 dark:border-zinc-800/80">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-zinc-100 dark:border-zinc-800/80 shrink-0">
             {/* Finder Path Bar / Breadcrumbs */}
             <div className="flex items-center gap-2.5 overflow-x-auto [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-zinc-200 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-850 [&::-webkit-scrollbar-thumb]:rounded-full">
               {viewMode === 'tree' && selectedFolderId && (
@@ -509,7 +544,10 @@ export default function DocumentManagement() {
           )}
 
           {/* FILE LIST VIEW (Finder List Layout) */}
-          <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/20 dark:bg-zinc-950/10 min-h-[300px] overflow-hidden">
+          <div 
+            onContextMenu={handleEmptyContextMenu}
+            className="border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/20 dark:bg-zinc-950/10 flex-1 min-h-[200px] overflow-hidden flex flex-col"
+          >
             {loading ? (
               <div className="flex flex-col items-center justify-center min-h-[280px] gap-2">
                 <Loader2 className="w-7 h-7 text-indigo-500 animate-spin" />
@@ -527,7 +565,7 @@ export default function DocumentManagement() {
                   </div>
                 </div>
               ) : (
-                <div className="divide-y divide-zinc-200/80 dark:divide-zinc-850/80 max-h-[320px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-200 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-300">
+                <div className="divide-y divide-zinc-200/80 dark:divide-zinc-850/80 flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-200 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-300">
                   {/* Folders first, then files */}
                   {[...activeChildren]
                     .sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'FOLDER' ? -1 : 1))
@@ -583,7 +621,7 @@ export default function DocumentManagement() {
                   <p className="text-xs text-zinc-400">Nenhum documento encontrado na categoria selecionada.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-zinc-200/80 dark:divide-zinc-850/80 max-h-[320px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-200 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-300">
+                <div className="divide-y divide-zinc-200/80 dark:divide-zinc-850/80 flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-200 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-300">
                   {paginatedFiles.map(file => (
                     <div 
                       key={file.id}
@@ -627,7 +665,7 @@ export default function DocumentManagement() {
 
           {/* Categories Search and Filter Controls (only in Category view) */}
           {viewMode === 'categories' && (
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1 shrink-0">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-zinc-400" />
                 <input
@@ -670,7 +708,7 @@ export default function DocumentManagement() {
         </div>
 
         {/* BOTTOM METADATA PATH BAR (Finder Statusbar) */}
-        <div className="text-[10px] text-zinc-400 dark:text-zinc-550 pt-4 mt-4 border-t border-zinc-100 dark:border-zinc-850 select-none flex items-center justify-between">
+        <div className="text-[10px] text-zinc-400 dark:text-zinc-550 pt-4 mt-4 border-t border-zinc-100 dark:border-zinc-850 select-none flex items-center justify-between shrink-0">
           <div className="flex items-center gap-1 truncate font-medium">
             <span className="font-bold text-zinc-500 dark:text-zinc-400">Finder:</span>
             {viewMode === 'tree' ? (
@@ -836,49 +874,64 @@ export default function DocumentManagement() {
           style={{ top: contextMenu.y, left: contextMenu.x }}
           className="fixed z-50 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg py-1.5 w-44 animate-in fade-in zoom-in-95 duration-100"
         >
-          {contextMenu.node.type === 'FILE' ? (
+          {contextMenu.type === 'empty' ? (
             <>
               <button
-                onClick={(e) => { e.stopPropagation(); handlePreviewFile(contextMenu.node); }}
+                onClick={(e) => { e.stopPropagation(); setShowUploadModal(true); setContextMenu(null); }}
+                className="w-full text-left px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer"
+              >
+                Criar arquivo
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); fetchTree(); setContextMenu(null); }}
+                className="w-full text-left px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer border-t border-zinc-100 dark:border-zinc-800"
+              >
+                Atualizar (Sincronizar)
+              </button>
+            </>
+          ) : contextNode && contextNode.type === 'FILE' ? (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); handlePreviewFile(contextNode); }}
                 className="w-full text-left px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer"
               >
                 Abrir
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); handleDownloadFile(contextMenu.node); }}
+                onClick={(e) => { e.stopPropagation(); handleDownloadFile(contextNode); }}
                 className="w-full text-left px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer"
               >
                 Fazer download
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); setFileToDelete(contextMenu.node); }}
+                onClick={(e) => { e.stopPropagation(); setFileToDelete(contextNode); }}
                 className="w-full text-left px-3.5 py-2 text-xs hover:bg-red-50 dark:hover:bg-red-950/20 text-red-650 dark:text-red-400 font-semibold cursor-pointer border-t border-zinc-100 dark:border-zinc-800"
               >
                 Excluir
               </button>
             </>
-          ) : (
+          ) : contextNode ? (
             <>
               <button
-                onClick={(e) => { e.stopPropagation(); setSelectedFolderId(contextMenu.node.id); }}
+                onClick={(e) => { e.stopPropagation(); setSelectedFolderId(contextNode.id); }}
                 className="w-full text-left px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer"
               >
                 Abrir
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); downloadBlob('/api/documents/folders/download-zip/' + contextMenu.node.id, contextMenu.node.name + '.zip'); }}
+                onClick={(e) => { e.stopPropagation(); downloadBlob('/api/documents/folders/download-zip/' + contextNode.id, contextNode.name + '.zip'); }}
                 className="w-full text-left px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer"
               >
                 Baixar zip
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); setFolderToDelete(contextMenu.node); }}
+                onClick={(e) => { e.stopPropagation(); setFolderToDelete(contextNode); }}
                 className="w-full text-left px-3.5 py-2 text-xs hover:bg-red-50 dark:hover:bg-red-950/20 text-red-650 dark:text-red-400 font-semibold cursor-pointer border-t border-zinc-100 dark:border-zinc-800"
               >
                 Excluir
               </button>
             </>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -893,17 +946,20 @@ export default function DocumentManagement() {
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
+                disabled={isDeleting}
                 onClick={() => setFileToDelete(null)}
-                className="px-4 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 type="button"
+                disabled={isDeleting}
                 onClick={() => handleDeleteDocument(fileToDelete.id)}
-                className="px-4 py-2 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-xl cursor-pointer shadow-sm"
+                className="px-4 py-2 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-xl cursor-pointer shadow-sm flex items-center gap-1.5 disabled:opacity-80"
               >
-                Excluir
+                {isDeleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {isDeleting ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
           </div>
@@ -933,17 +989,20 @@ export default function DocumentManagement() {
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
+                disabled={isDeleting}
                 onClick={() => setFolderToDelete(null)}
-                className="px-4 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 type="button"
+                disabled={isDeleting}
                 onClick={() => handleDeleteFolder(folderToDelete.id)}
-                className="px-4 py-2 text-xs font-semibold bg-red-650 hover:bg-red-755 text-white rounded-xl cursor-pointer shadow-sm"
+                className="px-4 py-2 text-xs font-semibold bg-red-650 hover:bg-red-755 text-white rounded-xl cursor-pointer shadow-sm flex items-center gap-1.5 disabled:opacity-80"
               >
-                Confirmar Exclusão
+                {isDeleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {isDeleting ? 'Excluindo...' : 'Confirmar Exclusão'}
               </button>
             </div>
           </div>
@@ -995,6 +1054,18 @@ export default function DocumentManagement() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* SUCCESS MODAL */}
+      {successModal && (
+        <FeedbackModal
+          isOpen={successModal.isOpen}
+          type="success"
+          title={successModal.title}
+          message={successModal.message}
+          confirmLabel="Ok, entendi"
+          onClose={() => setSuccessModal(null)}
+        />
       )}
     </div>
   );

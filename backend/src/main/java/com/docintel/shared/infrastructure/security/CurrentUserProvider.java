@@ -2,6 +2,7 @@ package com.docintel.shared.infrastructure.security;
 
 import com.docintel.user.application.UserService;
 import com.docintel.user.domain.User;
+import com.docintel.user.domain.UserRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,9 +14,8 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Data
 public class CurrentUserProvider {
-    private final UserService userService;
+    private final UserRepository userRepository;
 
     public User getCurrentUser() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -23,7 +23,9 @@ public class CurrentUserProvider {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User is not authenticated");
         }
 
-        return userService.getUserById(userId);
+        return userRepository.findById(userId).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
+        );
     }
 
     public UUID getCurrentUserId() {
