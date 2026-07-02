@@ -12,3 +12,17 @@ spring:
 
 server:
   port: 8080
+
+cloud:
+  storage:
+    provider: aws
+  aws:
+    region:
+      static: ${AWS_REGION}
+    credentials:
+      access-key: ${AWS_ACCESS_KEY_ID}
+      secret-key: ${AWS_SECRET_ACCESS_KEY}
+    s3:
+      bucket:
+        name: ${AWS_S3_BUCKET}
+      endpoint: ${AWS_S3_ENDPOINT}

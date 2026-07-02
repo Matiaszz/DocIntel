@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-import static com.docintel.shared.mappers.UserMapper.mapToUserResponse;
+import static com.docintel.shared.infrastructure.mappers.UserMapper.mapToUserResponse;
 
 @RestController
 @RequestMapping("/user")

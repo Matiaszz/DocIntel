@@ -168,7 +168,7 @@ async function handleTokenRefresh(): Promise<string | null> {
       const newAccessToken = data.accessToken;
       setAccessToken(newAccessToken);
       return newAccessToken;
-    } catch (error) {
+    } catch {
       setAccessToken(null);
       return null;
     } finally {

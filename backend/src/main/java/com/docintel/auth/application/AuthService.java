@@ -17,7 +17,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
-import static com.docintel.shared.mappers.UserMapper.mapToUserResponse;
+import static com.docintel.shared.infrastructure.mappers.UserMapper.mapToUserResponse;
 
 @Service
 @RequiredArgsConstructor
