@@ -8,6 +8,7 @@ import com.docintel.document.presentation.dto.FileTreeViewDTO;
 import com.docintel.document.presentation.dto.FolderDTO;
 import com.docintel.folder.application.FolderService;
 import com.docintel.folder.domain.Folder;
+import com.docintel.shared.infrastructure.security.CurrentUserProvider;
 import com.docintel.user.application.UserService;
 import com.docintel.user.domain.User;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.zip.ZipOutputStream;
@@ -32,6 +34,7 @@ public class DocumentController {
     private final DocumentService documentService;
     private final FolderService folderService;
     private final UserService userService;
+    private final CurrentUserProvider userProvider;
 
     /**
      * Endpoint to upload a file.
@@ -69,7 +72,7 @@ public class DocumentController {
             @RequestParam("relativePath") String relativePath,
             @RequestParam(value = "parentFolderId", required = false) UUID parentFolderId) {
 
-        User currentUser = userService.getCurrentUser();
+        User currentUser = userProvider.getCurrentUser();
         Folder folder = folderService.resolveAndCreatePath(relativePath, parentFolderId, currentUser);
 
         return ResponseEntity.ok(new FolderDTO(
@@ -98,7 +101,7 @@ public class DocumentController {
 
     @GetMapping("/categories")
     public ResponseEntity<List<CategoryDetail>> getCategories() {
-        List<CategoryDetail> categories = java.util.Arrays.stream(DocumentCategory.values())
+        List<CategoryDetail> categories = Arrays.stream(DocumentCategory.values())
                 .map(cat -> new CategoryDetail(
                         cat.name(),
                         cat.getLabel(),
@@ -111,9 +114,9 @@ public class DocumentController {
     }
 
     @GetMapping("/download/{id}")
-    public ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody> downloadDocument(@PathVariable UUID id) {
+    public ResponseEntity<StreamingResponseBody> downloadDocument(@PathVariable UUID id) {
         Document doc = documentService.getDocument(id);
-        org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody responseBody = outputStream -> {
+        StreamingResponseBody responseBody = outputStream -> {
             try (java.io.InputStream is = documentService.downloadDocumentStream(doc)) {
                 if (is != null) {
                     is.transferTo(outputStream);
@@ -128,9 +131,9 @@ public class DocumentController {
     }
 
     @GetMapping("/view/{id}")
-    public ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody> viewDocument(@PathVariable UUID id) {
+    public ResponseEntity<StreamingResponseBody> viewDocument(@PathVariable UUID id) {
         Document doc = documentService.getDocument(id);
-        org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody responseBody = outputStream -> {
+        StreamingResponseBody responseBody = outputStream -> {
             try (java.io.InputStream is = documentService.downloadDocumentStream(doc)) {
                 if (is != null) {
                     is.transferTo(outputStream);
@@ -162,7 +165,7 @@ public class DocumentController {
 
     @GetMapping("/folders/download-zip/{id}")
     public ResponseEntity<StreamingResponseBody> downloadFolderZip(@PathVariable UUID id) {
-        Folder folder = folderService.resolveAndCreatePath(null, id, userService.getCurrentUser());
+        Folder folder = folderService.resolveAndCreatePath(null, id, userProvider.getCurrentUser());
         String folderName = folder != null ? folder.getName() : "Drive";
 
         StreamingResponseBody responseBody = outputStream -> {

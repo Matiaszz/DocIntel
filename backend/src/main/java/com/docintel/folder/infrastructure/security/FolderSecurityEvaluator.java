@@ -5,6 +5,8 @@ import com.docintel.folder.domain.FolderPermission;
 import com.docintel.folder.domain.FolderPermissionRepository;
 import com.docintel.folder.domain.FolderRepository;
 import com.docintel.folder.domain.FolderRole;
+import com.docintel.shared.infrastructure.security.CurrentUserProvider;
+import com.docintel.user.application.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -18,15 +20,18 @@ public class FolderSecurityEvaluator {
 
     private final FolderPermissionRepository permissionRepository;
     private final FolderRepository folderRepository;
+    private final CurrentUserProvider userProvider;
 
     public boolean hasPermission(UUID folderId, String requiredRoleName) {
         if (folderId == null) {
             return true; // Root access is checked separately or allowed
         }
-        UUID userId = getCurrentUserId();
+
+        UUID userId = userProvider.getCurrentUserId();
         if (userId == null) {
             return false;
         }
+
         FolderRole requiredRole = FolderRole.valueOf(requiredRoleName);
         return checkPermissionRecursively(folderId, userId, requiredRole);
     }
@@ -55,13 +60,5 @@ public class FolderSecurityEvaluator {
         if (userRole == FolderRole.EDITOR) return requiredRole == FolderRole.EDITOR || requiredRole == FolderRole.VIEWER;
         if (userRole == FolderRole.VIEWER) return requiredRole == FolderRole.VIEWER;
         return false;
-    }
-
-    private UUID getCurrentUserId() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated() && authentication.getPrincipal() instanceof UUID userId) {
-            return userId;
-        }
-        return null;
     }
 }

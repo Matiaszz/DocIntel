@@ -7,6 +7,7 @@ import com.docintel.document.presentation.dto.FileTreeViewDTO;
 import com.docintel.folder.application.FolderService;
 import com.docintel.folder.domain.Folder;
 import com.docintel.folder.domain.FolderRepository;
+import com.docintel.shared.infrastructure.security.CurrentUserProvider;
 import com.docintel.shared.infrastructure.storage.FileStorage;
 import com.docintel.user.application.UserService;
 import com.docintel.user.domain.User;
@@ -34,7 +35,7 @@ public class DocumentService {
     private final FolderPermissionRepository folderPermissionRepository;
     private final FolderService folderService;
     private final FileStorage fileStorage;
-    private final UserService userService;
+    private final CurrentUserProvider currentUserProvider;
 
     /**
      * Resolves the target folder, uploads the physical file via FileStorage,
@@ -45,7 +46,7 @@ public class DocumentService {
             MultipartFile file, String relativePath,
             UUID parentFolderId, String category
     ) {
-        User currentUser = userService.getCurrentUser();
+        User currentUser = currentUserProvider.getCurrentUser();
 
         // 1. Resolve and create folders dynamically from path
         Folder targetFolder = folderService.resolveAndCreatePath(relativePath, parentFolderId, currentUser);
@@ -53,10 +54,12 @@ public class DocumentService {
         // 2. Extract or define file name
         String fileName = file.getOriginalFilename();
         if (fileName == null || fileName.trim().isEmpty()) {
-            if (relativePath != null && folderService.isFilePath(relativePath)) {
-                fileName = folderService.extractFileName(relativePath);
-            } else {
+            if (relativePath == null || !folderService.isFilePath(relativePath)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File name could not be resolved.");
+            }
+
+            if (folderService.isFilePath(relativePath)) {
+                fileName = folderService.extractFileName(relativePath);
             }
         }
 
@@ -87,7 +90,7 @@ public class DocumentService {
      */
     @Transactional(readOnly = true)
     public List<FileTreeViewDTO> getFileTreeView() {
-        User currentUser = userService.getCurrentUser();
+        User currentUser = currentUserProvider.getCurrentUser();
         UUID userId = currentUser.getId();
 
         // 1. Fetch folders and documents
@@ -178,21 +181,23 @@ public class DocumentService {
 
     @Transactional(readOnly = true)
     public Document getDocument(UUID id) {
-        User currentUser = userService.getCurrentUser();
+        User currentUser = currentUserProvider.getCurrentUser();
         Document doc = documentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found."));
 
         if (!doc.getOwner().getId().equals(currentUser.getId())) {
-            if (doc.getFolder() != null) {
-                boolean hasPermission = folderRepository.findAllAccessibleFolders(currentUser.getId())
-                        .stream()
-                        .anyMatch(f -> f.getId().equals(doc.getFolder().getId()));
-                if (!hasPermission) {
-                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized to access this document.");
-                }
-            } else {
+            if (doc.getFolder() == null){
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized to access this document.");
             }
+
+            boolean hasPermission = folderRepository.findAllAccessibleFolders(currentUser.getId())
+                    .stream()
+                    .anyMatch(f -> f.getId().equals(doc.getFolder().getId()));
+
+            if (!hasPermission) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized to access this document.");
+            }
+
         }
         return doc;
     }
@@ -204,7 +209,7 @@ public class DocumentService {
 
     @Transactional
     public void deleteDocument(UUID id) {
-        User currentUser = userService.getCurrentUser();
+        User currentUser = currentUserProvider.getCurrentUser();
         Document doc = documentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found."));
 
@@ -220,7 +225,7 @@ public class DocumentService {
 
     @Transactional
     public void deleteFolder(UUID id) {
-        User currentUser = userService.getCurrentUser();
+        User currentUser = currentUserProvider.getCurrentUser();
         Folder folder = folderRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Folder not found."));
 

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -78,7 +78,7 @@ public class AwsS3Storage implements FileStorage {
     public InputStream download(String key) {
         try {
             return s3.getObject(
-                    software.amazon.awssdk.services.s3.model.GetObjectRequest.builder()
+                    GetObjectRequest.builder()
                             .bucket(bucketName)
                             .key(key)
                             .build()
@@ -93,20 +93,15 @@ public class AwsS3Storage implements FileStorage {
     public boolean deleteFile(UUID userId, UUID fileId) {
         try {
             String prefix = "documents/" + fileId.toString() + "_";
-            software.amazon.awssdk.services.s3.model.ListObjectsV2Response listResponse = s3.listObjectsV2(
-                    software.amazon.awssdk.services.s3.model.ListObjectsV2Request.builder()
+           ListObjectsV2Response listResponse = s3.listObjectsV2(
+                    ListObjectsV2Request.builder()
                             .bucket(bucketName)
                             .prefix(prefix)
                             .build()
             );
 
             listResponse.contents().forEach(object -> {
-                s3.deleteObject(
-                        software.amazon.awssdk.services.s3.model.DeleteObjectRequest.builder()
-                                .bucket(bucketName)
-                                .key(object.key())
-                                .build()
-                );
+                deleteFile(object.key());
             });
             return true;
         } catch (Exception e) {
@@ -119,17 +114,21 @@ public class AwsS3Storage implements FileStorage {
     public boolean deleteProfilePicture(UUID userId, UUID fileId) {
         try {
             String key = resolvePictureKey(userId, fileId);
-            s3.deleteObject(
-                    software.amazon.awssdk.services.s3.model.DeleteObjectRequest.builder()
-                            .bucket(bucketName)
-                            .key(key)
-                            .build()
-            );
+            deleteFile(key);
             return true;
         } catch (Exception e) {
             log.error("Failed to delete profile picture from S3. FileId: {}, Error: {}", fileId, e.getMessage());
             return false;
         }
+    }
+
+    private void deleteFile(String key){
+        s3.deleteObject(
+                DeleteObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(key)
+                        .build()
+        );
     }
 
     private void putFile(String key, byte[] content, Map<String, String> metadata) {

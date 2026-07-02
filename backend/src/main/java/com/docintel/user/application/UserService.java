@@ -1,5 +1,6 @@
 package com.docintel.user.application;
 
+import com.docintel.shared.infrastructure.security.CurrentUserProvider;
 import com.docintel.user.domain.User;
 import com.docintel.user.domain.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
+    private final CurrentUserProvider userProvider;
 
     public User getUserById(UUID id){
 
@@ -27,17 +29,8 @@ public class UserService {
         );
     }
 
-    public User getCurrentUser() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof UUID userId)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User is not authenticated");
-        }
-
-        return getUserById(userId);
-    }
-
     public User updateCurrentUser(UpdateUserRequest request) {
-        User currentUser = getCurrentUser();
+        User currentUser = userProvider.getCurrentUser();
 
         if (!currentUser.getEmail().equalsIgnoreCase(request.email())) {
             if (userRepository.findByEmail(request.email()).isPresent()) {
