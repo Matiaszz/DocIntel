@@ -16,7 +16,12 @@ import {
   Search,
   FileText,
   ArrowLeft,
-  HardDrive
+  HardDrive,
+  Download,
+  Trash2,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw
 } from 'lucide-react';
 import { fetchClient, getAccessToken } from '../../lib/api';
 import { useCategories } from '../../hooks/useCategories';
@@ -72,6 +77,7 @@ export default function DocumentManagement() {
     message: string;
   } | null>(null);
   const [previewFileName, setPreviewFileName] = useState<string>('');
+  const [zoomScale, setZoomScale] = useState(100);
   const [folderToDelete, setFolderToDelete] = useState<TreeNode | null>(null);
   const [fileToDelete, setFileToDelete] = useState<TreeNode | null>(null);
 
@@ -177,6 +183,7 @@ export default function DocumentManagement() {
     }
     setPreviewUrl(null);
     setPreviewFile(null);
+    setZoomScale(100);
   };
 
   const handleDeleteDocument = async (id: string) => {
@@ -1013,7 +1020,7 @@ export default function DocumentManagement() {
       {previewFile && previewUrl && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-full max-w-4xl h-[90vh] rounded-2xl p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 flex flex-col">
-            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3 shrink-0">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3 gap-3 shrink-0">
               <div className="min-w-0">
                 <h3 className="text-sm font-bold text-zinc-900 dark:text-white truncate">
                   Visualizando: {previewFileName}
@@ -1022,35 +1029,107 @@ export default function DocumentManagement() {
                   Categoria: {resolveCategory(previewFile.category)?.label || 'Geral'}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={closePreview}
-                className="px-3.5 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer"
-              >
-                Fechar
-              </button>
+
+              {/* Action Toolbar */}
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                {/* Zoom Controls */}
+                <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1">
+                  <button
+                    type="button"
+                    title="Diminuir Zoom"
+                    onClick={() => setZoomScale(prev => Math.max(25, prev - 25))}
+                    className="p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-lg text-zinc-550 dark:text-zinc-350 transition-all cursor-pointer"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-[10px] font-bold text-zinc-650 dark:text-zinc-350 min-w-[36px] text-center">
+                    {zoomScale}%
+                  </span>
+                  <button
+                    type="button"
+                    title="Aumentar Zoom"
+                    onClick={() => setZoomScale(prev => Math.min(300, prev + 25))}
+                    className="p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-lg text-zinc-550 dark:text-zinc-350 transition-all cursor-pointer"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                  {zoomScale !== 100 && (
+                    <button
+                      type="button"
+                      title="Resetar Zoom"
+                      onClick={() => setZoomScale(100)}
+                      className="p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-all cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="h-5 w-[1px] bg-zinc-200 dark:bg-zinc-800 mx-1 hidden sm:block" />
+
+                {/* Download Button */}
+                <button
+                  type="button"
+                  title="Baixar arquivo"
+                  onClick={() => handleDownloadFile(previewFile)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-indigo-500" />
+                  <span className="hidden md:inline">Download</span>
+                </button>
+
+                {/* Delete Button */}
+                <button
+                  type="button"
+                  title="Excluir arquivo"
+                  onClick={() => {
+                    setFileToDelete(previewFile);
+                    closePreview();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-650 hover:bg-red-50 dark:hover:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-xl transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                  <span className="hidden md:inline">Excluir</span>
+                </button>
+
+                <div className="h-5 w-[1px] bg-zinc-200 dark:bg-zinc-800 mx-1 hidden sm:block" />
+
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={closePreview}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
             
-            <div className="flex-1 bg-zinc-50 dark:bg-zinc-950 rounded-xl border border-zinc-100 dark:border-zinc-850 p-1.5 flex items-center justify-center overflow-hidden">
-              {previewFileName.toLowerCase().endsWith('.pdf') ? (
-                <iframe
-                  src={previewUrl}
-                  className="w-full h-full rounded-lg border-0"
-                  title="PDF Preview"
-                />
-              ) : /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(previewFileName) ? (
-                <img
-                  src={previewUrl}
-                  alt={previewFileName}
-                  className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
-                />
-              ) : (
-                <iframe
-                  src={previewUrl}
-                  className="w-full h-full rounded-lg border-0"
-                  title="Document Preview"
-                />
-              )}
+            <div className="flex-1 bg-zinc-50 dark:bg-zinc-950 rounded-xl border border-zinc-100 dark:border-zinc-850 p-1.5 flex items-center justify-center overflow-auto">
+              <div 
+                className="w-full h-full flex items-center justify-center transition-transform duration-200"
+                style={{ transform: `scale(${zoomScale / 100})`, transformOrigin: 'center center' }}
+              >
+                {previewFileName.toLowerCase().endsWith('.pdf') ? (
+                  <iframe
+                    src={previewUrl}
+                    className="w-full h-full rounded-lg border-0"
+                    title="PDF Preview"
+                  />
+                ) : /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(previewFileName) ? (
+                  <img
+                    src={previewUrl}
+                    alt={previewFileName}
+                    className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
+                  />
+                ) : (
+                  <iframe
+                    src={previewUrl}
+                    className="w-full h-full rounded-lg border-0"
+                    title="Document Preview"
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>

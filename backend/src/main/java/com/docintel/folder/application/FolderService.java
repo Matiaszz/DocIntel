@@ -48,8 +48,11 @@ public class FolderService {
         int folderCount = isFile ? parts.length - 1 : parts.length;
 
         for (int i = 0; i < folderCount; i++) {
-            String folderName = parts[i];
+            String folderName = org.springframework.web.util.HtmlUtils.htmlEscape(parts[i]);
             if (folderName.trim().isEmpty()) continue;
+            if (parts[i].equals(".") || parts[i].equals("..")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid path segment.");
+            }
 
             Optional<Folder> existingFolder;
             if (currentParent == null) {

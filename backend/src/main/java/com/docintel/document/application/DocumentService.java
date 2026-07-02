@@ -51,7 +51,6 @@ public class DocumentService {
         // 1. Resolve and create folders dynamically from path
         Folder targetFolder = folderService.resolveAndCreatePath(relativePath, parentFolderId, currentUser);
 
-        // 2. Extract or define file name
         String fileName = file.getOriginalFilename();
         if (fileName == null || fileName.trim().isEmpty()) {
             if (relativePath == null || !folderService.isFilePath(relativePath)) {
@@ -61,6 +60,10 @@ public class DocumentService {
             if (folderService.isFilePath(relativePath)) {
                 fileName = folderService.extractFileName(relativePath);
             }
+        }
+
+        if (fileName != null) {
+            fileName = new java.io.File(fileName).getName();
         }
 
         DocumentCategory documentCategory = DocumentCategory.fromString(category);

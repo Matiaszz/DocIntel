@@ -19,7 +19,7 @@ spring:
     password: ${RABBITMQ_PASSWORD}
 
 app:
-  frontendUrl: http://localhost:3000
+  frontendUrl: ${APP_FRONTEND_URL:http://localhost:3000}
   cookieSecure: true
 server:
   error:

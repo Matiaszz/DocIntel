@@ -1,18 +1,16 @@
 package com.docintel.user.application;
 
+import com.docintel.shared.infrastructure.security.CurrentUserProvider;
 import com.docintel.user.domain.User;
 import com.docintel.user.domain.UserRepository;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import com.docintel.user.presentation.dto.UpdateUserRequest;
+import com.docintel.auth.infrastructure.exception.EmailAlreadyInUseException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
@@ -27,18 +25,11 @@ public class UserServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private CurrentUserProvider userProvider;
+
     @InjectMocks
     private UserService userService;
-
-    @BeforeEach
-    void setUp() {
-        SecurityContextHolder.clearContext();
-    }
-
-    @AfterEach
-    void tearDown() {
-        SecurityContextHolder.clearContext();
-    }
 
     @Test
     void shouldGetUserByIdSuccessfully() {
@@ -77,46 +68,9 @@ public class UserServiceTest {
     }
 
     @Test
-    void shouldThrowUnauthorizedWhenAuthenticationIsNull() {
+    void shouldThrowUnauthorizedWhenUserProviderThrowsUnauthorized() {
         // Arrange
-        SecurityContextHolder.clearContext();
-
-        // Act & Assert
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-            userService.getCurrentUser();
-        });
-
-        assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
-        assertEquals("User is not authenticated", exception.getReason());
-    }
-
-    @Test
-    void shouldThrowUnauthorizedWhenIsNotAuthenticated() {
-        // Arrange
-        SecurityContext securityContext = mock(SecurityContext.class);
-        Authentication authentication = mock(Authentication.class);
-        when(authentication.isAuthenticated()).thenReturn(false);
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        SecurityContextHolder.setContext(securityContext);
-
-        // Act & Assert
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-            userService.getCurrentUser();
-        });
-
-        assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
-        assertEquals("User is not authenticated", exception.getReason());
-    }
-
-    @Test
-    void shouldThrowUnauthorizedWhenPrincipalIsNotUUID() {
-        // Arrange
-        SecurityContext securityContext = mock(SecurityContext.class);
-        Authentication authentication = mock(Authentication.class);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn("not-a-uuid");
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        SecurityContextHolder.setContext(securityContext);
+        when(userProvider.getCurrentUser()).thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User is not authenticated"));
 
         // Act & Assert
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
@@ -135,14 +89,7 @@ public class UserServiceTest {
         user.setId(userId);
         user.setEmail("current@example.com");
 
-        SecurityContext securityContext = mock(SecurityContext.class);
-        Authentication authentication = mock(Authentication.class);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userId);
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        SecurityContextHolder.setContext(securityContext);
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userProvider.getCurrentUser()).thenReturn(user);
 
         // Act
         User result = userService.getCurrentUser();
@@ -151,6 +98,79 @@ public class UserServiceTest {
         assertNotNull(result);
         assertEquals(userId, result.getId());
         assertEquals("current@example.com", result.getEmail());
-        verify(userRepository).findById(userId);
+        verify(userProvider).getCurrentUser();
+    }
+
+    @Test
+    void shouldUpdateCurrentUserWithoutEmailChange() {
+        // Arrange
+        UUID userId = UUID.randomUUID();
+        User currentUser = new User();
+        currentUser.setId(userId);
+        currentUser.setEmail("test@example.com");
+        currentUser.setFirstName("OldFirst");
+        currentUser.setLastName("OldLast");
+
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UpdateUserRequest request = new UpdateUserRequest("NewFirst", "NewLast", "test@example.com");
+
+        // Act
+        User result = userService.updateCurrentUser(request);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals("NewFirst", result.getFirstName());
+        assertEquals("NewLast", result.getLastName());
+        assertEquals("test@example.com", result.getEmail());
+        verify(userRepository, never()).findByEmail(anyString());
+        verify(userRepository).save(currentUser);
+    }
+
+    @Test
+    void shouldUpdateCurrentUserWithEmailChangeSuccessfully() {
+        // Arrange
+        UUID userId = UUID.randomUUID();
+        User currentUser = new User();
+        currentUser.setId(userId);
+        currentUser.setEmail("old@example.com");
+
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UpdateUserRequest request = new UpdateUserRequest("First", "Last", "new@example.com");
+
+        // Act
+        User result = userService.updateCurrentUser(request);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals("new@example.com", result.getEmail());
+        verify(userRepository).findByEmail("new@example.com");
+        verify(userRepository).save(currentUser);
+    }
+
+    @Test
+    void shouldThrowEmailAlreadyInUseWhenUpdatingEmailToExistingOne() {
+        // Arrange
+        UUID userId = UUID.randomUUID();
+        User currentUser = new User();
+        currentUser.setId(userId);
+        currentUser.setEmail("old@example.com");
+
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+        when(userRepository.findByEmail("existing@example.com")).thenReturn(Optional.of(new User()));
+
+        UpdateUserRequest request = new UpdateUserRequest("First", "Last", "existing@example.com");
+
+        // Act & Assert
+        assertThrows(EmailAlreadyInUseException.class, () -> {
+            userService.updateCurrentUser(request);
+        });
+
+        verify(userRepository).findByEmail("existing@example.com");
+        verify(userRepository, never()).save(any(User.class));
     }
 }

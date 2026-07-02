@@ -22,7 +22,7 @@ import java.util.UUID;
 @Service
 public class JwtService {
 
-    @Value("${JWT_SECRET:sua-chave-super-secreta-com-pelo-menos-32-caracteres}")
+    @Value("${JWT_SECRET}")
     private String jwtSecret;
 
     // Access token expires in 15 minutes (900,000 ms)
