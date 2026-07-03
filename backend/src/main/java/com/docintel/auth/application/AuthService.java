@@ -13,6 +13,7 @@ import com.docintel.auth.domain.email.EmailVerificationTokenRepository;
 import com.docintel.shared.infrastructure.email.EmailSender;
 import com.docintel.user.domain.User;
 import com.docintel.user.domain.UserRepository;
+import com.docintel.user.presentation.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;

@@ -3,6 +3,7 @@ package com.docintel.auth.presentation.controller;
 import com.docintel.auth.application.AuthService;
 import com.docintel.auth.infrastructure.exception.InvalidRefreshTokenException;
 import com.docintel.auth.presentation.dto.*;
+import com.docintel.user.presentation.dto.UserResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

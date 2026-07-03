@@ -1,6 +1,6 @@
 package com.docintel.user.presentation.controller;
 
-import com.docintel.auth.presentation.dto.UserResponse;
+import com.docintel.user.presentation.dto.UserResponse;
 import com.docintel.user.application.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

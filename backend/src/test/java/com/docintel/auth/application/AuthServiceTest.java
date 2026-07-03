@@ -10,7 +10,7 @@ import com.docintel.auth.presentation.dto.ResetPasswordRequest;
 import com.docintel.shared.infrastructure.email.EmailSender;
 import com.docintel.auth.infrastructure.exception.EmailAlreadyInUseException;
 import com.docintel.auth.presentation.dto.RegisterRequest;
-import com.docintel.auth.presentation.dto.UserResponse;
+import com.docintel.user.presentation.dto.UserResponse;
 import com.docintel.user.domain.User;
 import com.docintel.user.domain.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
