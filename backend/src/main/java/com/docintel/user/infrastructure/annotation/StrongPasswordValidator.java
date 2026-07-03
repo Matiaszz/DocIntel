@@ -10,7 +10,6 @@ public class StrongPasswordValidator
     public boolean isValid(String value,
                            ConstraintValidatorContext context) {
 
-        return value != null
-                && value.length() >= 8;
+        return value != null && value.length() >= 8;
     }
 }

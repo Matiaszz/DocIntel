@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import com.docintel.folder.domain.FolderPermissionRepository;
 
@@ -266,13 +268,13 @@ public class DocumentService {
     }
 
     @Transactional(readOnly = true)
-    public void zipFolder(UUID folderId, java.util.zip.ZipOutputStream zos, String currentPath) throws IOException {
+    public void zipFolder(UUID folderId, ZipOutputStream zos, String currentPath) throws IOException {
         List<Document> documents = documentRepository.findByFolderId(folderId);
         for (Document doc : documents) {
             try (InputStream is = fileStorage.download(doc.getS3Key())) {
                 if (is != null) {
                     String zipEntryPath = currentPath + doc.getName();
-                    zos.putNextEntry(new java.util.zip.ZipEntry(zipEntryPath));
+                    zos.putNextEntry(new ZipEntry(zipEntryPath));
                     is.transferTo(zos);
                     zos.closeEntry();
                 }

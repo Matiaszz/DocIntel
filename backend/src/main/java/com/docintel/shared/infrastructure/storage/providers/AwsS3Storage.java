@@ -93,7 +93,7 @@ public class AwsS3Storage implements FileStorage {
     public void deleteFile(UUID userId, UUID fileId) {
         try {
             String prefix = "documents/" + fileId.toString() + "_";
-           ListObjectsV2Response listResponse = s3.listObjectsV2(
+            ListObjectsV2Response listResponse = s3.listObjectsV2(
                     ListObjectsV2Request.builder()
                             .bucket(bucketName)
                             .prefix(prefix)

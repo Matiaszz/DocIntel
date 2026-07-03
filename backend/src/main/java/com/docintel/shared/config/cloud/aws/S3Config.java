@@ -24,7 +24,6 @@ public class S3Config {
 
     @Bean
     public S3Client s3Client() {
-
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
 
         S3Client client = S3Client.builder()

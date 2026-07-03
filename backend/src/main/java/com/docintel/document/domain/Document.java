@@ -10,8 +10,7 @@ import org.springframework.data.domain.Persistable;
 import java.util.Optional;
 import java.util.UUID;
 
-@Getter
-@Setter
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity

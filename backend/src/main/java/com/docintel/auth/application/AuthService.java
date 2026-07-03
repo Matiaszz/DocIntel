@@ -64,8 +64,8 @@ public class AuthService {
 
     @Transactional
     public LoginResult login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
+        User user = userRepository.findByEmail(request.email()).orElseThrow(
+                () -> new InvalidCredentialsException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new InvalidCredentialsException("Invalid email or password");
