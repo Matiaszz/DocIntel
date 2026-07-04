@@ -1,5 +1,6 @@
 package com.docintel.auth.presentation.dto;
 
+import com.docintel.modules.auth.presentation.dto.request.RegisterRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;

@@ -1,17 +1,22 @@
 package com.docintel.document.application;
 
-import com.docintel.document.domain.Document;
-import com.docintel.document.domain.DocumentCategory;
-import com.docintel.document.domain.DocumentRepository;
-import com.docintel.document.domain.DocumentStatus;
-import com.docintel.document.presentation.dto.*;
-import com.docintel.folder.application.FolderService;
-import com.docintel.folder.domain.Folder;
-import com.docintel.folder.domain.FolderPermissionRepository;
-import com.docintel.folder.domain.FolderRepository;
+import com.docintel.modules.document.application.DocumentService;
+import com.docintel.modules.document.domain.Document;
+import com.docintel.modules.document.domain.enums.DocumentCategory;
+import com.docintel.modules.document.domain.DocumentRepository;
+import com.docintel.modules.document.domain.enums.DocumentStatus;
+import com.docintel.modules.document.presentation.dto.request.UploadCompleteRequestDTO;
+import com.docintel.modules.document.presentation.dto.request.UploadInitiateRequestDTO;
+import com.docintel.modules.document.presentation.dto.response.DocumentResponseDTO;
+import com.docintel.modules.document.presentation.dto.response.FileTreeViewResponseDTO;
+import com.docintel.modules.document.presentation.dto.response.UploadInitiateResponseDTO;
+import com.docintel.modules.folder.application.FolderService;
+import com.docintel.modules.folder.domain.Folder;
+import com.docintel.modules.folder.domain.FolderPermissionRepository;
+import com.docintel.modules.folder.domain.FolderRepository;
 import com.docintel.shared.infrastructure.security.CurrentUserProvider;
 import com.docintel.shared.infrastructure.storage.FileStorage;
-import com.docintel.user.domain.User;
+import com.docintel.modules.user.domain.User;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -162,7 +167,7 @@ public class DocumentServiceTest {
         UploadCompleteRequestDTO request = new UploadCompleteRequestDTO(null, null);
 
         // Act
-        DocumentDTO result = documentService.completeUpload(docId, request);
+        DocumentResponseDTO result = documentService.completeUpload(docId, request);
 
         // Assert
         assertNotNull(result);
@@ -203,24 +208,24 @@ public class DocumentServiceTest {
         when(documentRepository.findAllAccessibleDocuments(user.getId())).thenReturn(List.of(docC, docD));
 
         // Act
-        List<FileTreeViewDTO> result = documentService.getFileTreeView();
+        List<FileTreeViewResponseDTO> result = documentService.getFileTreeView();
 
         // Assert
         assertNotNull(result);
         assertEquals(2, result.size()); // Folder A and Doc D at root level
 
-        FileTreeViewDTO rootFolderNode = result.stream().filter(n -> n.type().equals("FOLDER")).findFirst().orElseThrow();
+        FileTreeViewResponseDTO rootFolderNode = result.stream().filter(n -> n.type().equals("FOLDER")).findFirst().orElseThrow();
         assertEquals("Folder A", rootFolderNode.name());
         assertEquals(1, rootFolderNode.children().size()); // Folder B is child of Folder A
 
-        FileTreeViewDTO subFolderNode = rootFolderNode.children().get(0);
+        FileTreeViewResponseDTO subFolderNode = rootFolderNode.children().get(0);
         assertEquals("Folder B", subFolderNode.name());
         assertEquals(1, subFolderNode.children().size()); // Doc C is child of Folder B
 
-        FileTreeViewDTO docCNode = subFolderNode.children().get(0);
+        FileTreeViewResponseDTO docCNode = subFolderNode.children().get(0);
         assertEquals("Doc C.txt", docCNode.name());
 
-        FileTreeViewDTO docDNode = result.stream().filter(n -> n.type().equals("FILE")).findFirst().orElseThrow();
+        FileTreeViewResponseDTO docDNode = result.stream().filter(n -> n.type().equals("FILE")).findFirst().orElseThrow();
         assertEquals("Doc D.txt", docDNode.name());
     }
 

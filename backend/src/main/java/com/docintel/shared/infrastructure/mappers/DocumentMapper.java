@@ -1,11 +1,11 @@
 package com.docintel.shared.infrastructure.mappers;
 
-import com.docintel.document.domain.Document;
-import com.docintel.document.presentation.dto.DocumentDTO;
+import com.docintel.modules.document.domain.Document;
+import com.docintel.modules.document.presentation.dto.response.DocumentResponseDTO;
 
 public class DocumentMapper {
-    public static DocumentDTO mapToDocumentDTO(Document document) {
-        return new DocumentDTO(
+    public static DocumentResponseDTO mapToDocumentDTO(Document document) {
+        return new DocumentResponseDTO(
                 document.getId(),
                 document.getName(),
                 document.getS3Key(),

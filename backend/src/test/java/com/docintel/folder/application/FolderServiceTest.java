@@ -1,7 +1,12 @@
 package com.docintel.folder.application;
 
-import com.docintel.folder.domain.*;
-import com.docintel.user.domain.User;
+import com.docintel.modules.folder.application.FolderService;
+import com.docintel.modules.folder.domain.enums.FolderRole;
+import com.docintel.modules.folder.domain.Folder;
+import com.docintel.modules.folder.domain.FolderPermission;
+import com.docintel.modules.folder.domain.FolderPermissionRepository;
+import com.docintel.modules.folder.domain.FolderRepository;
+import com.docintel.modules.user.domain.User;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;

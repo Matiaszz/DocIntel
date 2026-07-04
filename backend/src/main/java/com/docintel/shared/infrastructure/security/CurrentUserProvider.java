@@ -1,9 +1,7 @@
 package com.docintel.shared.infrastructure.security;
 
-import com.docintel.user.application.UserService;
-import com.docintel.user.domain.User;
-import com.docintel.user.domain.UserRepository;
-import lombok.Data;
+import com.docintel.modules.user.domain.User;
+import com.docintel.modules.user.domain.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;

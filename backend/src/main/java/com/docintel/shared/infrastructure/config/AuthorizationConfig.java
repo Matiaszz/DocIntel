@@ -1,6 +1,6 @@
 package com.docintel.shared.infrastructure.config;
 
-import com.docintel.auth.infrastructure.JwtAuthenticationFilter;
+import com.docintel.modules.auth.infrastructure.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;

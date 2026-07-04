@@ -1,8 +1,8 @@
 package com.docintel.shared.exception;
 
-import com.docintel.auth.infrastructure.exception.EmailAlreadyInUseException;
-import com.docintel.auth.infrastructure.exception.InvalidCredentialsException;
-import com.docintel.auth.infrastructure.exception.InvalidRefreshTokenException;
+import com.docintel.modules.auth.infrastructure.exception.EmailAlreadyInUseException;
+import com.docintel.modules.auth.infrastructure.exception.InvalidCredentialsException;
+import com.docintel.modules.auth.infrastructure.exception.InvalidRefreshTokenException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;

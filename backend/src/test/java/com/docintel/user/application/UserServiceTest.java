@@ -1,11 +1,12 @@
 package com.docintel.user.application;
 
+import com.docintel.modules.user.application.UserService;
 import com.docintel.shared.infrastructure.security.CurrentUserProvider;
-import com.docintel.user.domain.User;
-import com.docintel.user.domain.UserRepository;
-import com.docintel.user.presentation.dto.UpdateUserRequest;
-import com.docintel.user.presentation.dto.ChangePasswordRequest;
-import com.docintel.auth.infrastructure.exception.EmailAlreadyInUseException;
+import com.docintel.modules.user.domain.User;
+import com.docintel.modules.user.domain.UserRepository;
+import com.docintel.modules.user.presentation.dto.request.UpdateUserRequest;
+import com.docintel.modules.user.presentation.dto.request.ChangePasswordRequest;
+import com.docintel.modules.auth.infrastructure.exception.EmailAlreadyInUseException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
