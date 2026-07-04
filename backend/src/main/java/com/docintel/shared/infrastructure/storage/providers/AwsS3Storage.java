@@ -7,18 +7,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.*;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -35,51 +31,6 @@ public class AwsS3Storage implements FileStorage {
 
     private final S3Client s3;
     private final S3Presigner s3Presigner;
-
-
-    @Override
-    public boolean uploadFile(MultipartFile file, UUID userId, UUID fileId) {
-        try {
-            String fileName = file.getOriginalFilename();
-
-            if (fileName == null){
-                throw new IOException("Filename is null.");
-            }
-
-            String key = resolveFileKey(fileId, fileName);
-
-            // S3 user-defined metadata values must be US-ASCII. Non-ASCII characters (like accents or spaces) will corrupt Signature Version 4.
-            String encodedFileName = java.net.URLEncoder.encode(fileName, java.nio.charset.StandardCharsets.UTF_8);
-            Map<String, String> metadata = Map.of(
-                    "fileId", fileId.toString(),
-                    "originalFilename", encodedFileName
-            );
-
-            putFile(key, file.getBytes(), metadata);
-
-            return true;
-        } catch (IOException e){
-            log.error(e.getMessage());
-            return false;
-        }
-    }
-
-    @Override
-    public boolean uploadProfilePicture(MultipartFile file, UUID userId, UUID fileId) {
-        try {
-            String key = resolvePictureKey(userId, fileId);
-            Map<String, String> metadata = Map.of(
-                    "fileId", fileId.toString()
-            );
-
-            putFile(key, file.getBytes(), metadata);
-
-            return true;
-        } catch (IOException e){
-            log.error(e.getMessage());
-            return false;
-        }
-    }
 
     @Override
     public InputStream download(String key) {
@@ -217,16 +168,6 @@ public class AwsS3Storage implements FileStorage {
                         .bucket(bucketName)
                         .key(key)
                         .build()
-        );
-    }
-
-    private void putFile(String key, byte[] content, Map<String, String> metadata) {
-        s3.putObject(
-                PutObjectRequest.builder()
-                        .bucket(bucketName)
-                        .key(key)
-                        .metadata(metadata)
-                        .build(), RequestBody.fromBytes(content)
         );
     }
 }

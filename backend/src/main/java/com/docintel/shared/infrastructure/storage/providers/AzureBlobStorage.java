@@ -14,15 +14,6 @@ import java.util.UUID;
         havingValue = "azure"
 )
 public class AzureBlobStorage implements FileStorage {
-    @Override
-    public boolean uploadFile(MultipartFile file, UUID userId, UUID fileId) {
-        throw new UnsupportedOperationException("Azure Blob Storage is not implemented.");
-    }
-
-    @Override
-    public boolean uploadProfilePicture(MultipartFile file, UUID userId, UUID fileId) {
-        throw new UnsupportedOperationException("Azure Blob Storage is not implemented.");
-    }
 
     @Override
     public InputStream download(String key){

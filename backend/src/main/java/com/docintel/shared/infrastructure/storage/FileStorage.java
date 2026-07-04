@@ -1,16 +1,10 @@
 package com.docintel.shared.infrastructure.storage;
 
-import org.springframework.web.multipart.MultipartFile;
-
 import java.io.InputStream;
 import java.util.List;
 import java.util.UUID;
 
 public interface FileStorage {
-
-    boolean uploadFile(MultipartFile file, UUID userId, UUID fileId);
-
-    boolean uploadProfilePicture(MultipartFile file, UUID userId, UUID fileId);
 
     InputStream download(String key);
 
