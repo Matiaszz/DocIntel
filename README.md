@@ -105,6 +105,9 @@ O foco não é apenas entregar funcionalidades, mas construir uma aplicação se
 
 ---
 
+## Referências
+#### System Design do Google Drive: https://www.youtube.com/watch?v=qMPfjCH3qQU&t=1681s
+
 ## 📄 Licença
 
 Este projeto está disponível apenas para fins de estudo e demonstração de portfólio.
