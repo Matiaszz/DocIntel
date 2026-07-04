@@ -1,4 +1,4 @@
-package com.docintel.shared.infrastructure.mappers;
+package com.docintel.modules.document.mapper;
 
 import com.docintel.modules.document.domain.Document;
 import com.docintel.modules.document.presentation.dto.response.DocumentResponseDTO;

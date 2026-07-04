@@ -1,4 +1,4 @@
-package com.docintel.shared.infrastructure.mappers;
+package com.docintel.modules.user.mapper;
 
 import com.docintel.modules.user.presentation.dto.response.UserResponse;
 import com.docintel.modules.user.domain.User;

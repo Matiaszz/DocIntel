@@ -5,7 +5,6 @@ import com.docintel.modules.auth.domain.jwt.RefreshTokenRepository;
 import com.docintel.modules.auth.infrastructure.exception.EmailAlreadyInUseException;
 import com.docintel.modules.auth.infrastructure.exception.InvalidCredentialsException;
 import com.docintel.modules.auth.infrastructure.exception.InvalidRefreshTokenException;
-import com.docintel.auth.presentation.dto.*;
 import com.docintel.modules.auth.domain.password.PasswordResetToken;
 import com.docintel.modules.auth.domain.password.PasswordResetTokenRepository;
 import com.docintel.modules.auth.domain.email.EmailVerificationToken;
@@ -16,7 +15,7 @@ import com.docintel.modules.auth.presentation.dto.request.LoginRequest;
 import com.docintel.modules.auth.presentation.dto.request.RegisterRequest;
 import com.docintel.modules.auth.presentation.dto.request.ResetPasswordRequest;
 import com.docintel.modules.auth.presentation.dto.response.LoginResponse;
-import com.docintel.shared.infrastructure.email.EmailSender;
+import com.docintel.shared.contracts.EmailSender;
 import com.docintel.modules.user.domain.User;
 import com.docintel.modules.user.domain.UserRepository;
 import com.docintel.modules.user.presentation.dto.response.UserResponse;
@@ -32,7 +31,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
-import static com.docintel.shared.infrastructure.mappers.UserMapper.mapToUserResponse;
+import static com.docintel.modules.user.mapper.UserMapper.mapToUserResponse;
 
 @Service
 @RequiredArgsConstructor

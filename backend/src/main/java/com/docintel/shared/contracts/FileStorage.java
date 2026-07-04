@@ -1,4 +1,6 @@
-package com.docintel.shared.infrastructure.storage;
+package com.docintel.shared.contracts;
+
+import com.docintel.shared.dto.CompletedPartDTO;
 
 import java.io.InputStream;
 import java.util.List;

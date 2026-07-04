@@ -1,6 +1,6 @@
 package com.docintel.modules.user.application;
 
-import com.docintel.shared.infrastructure.security.CurrentUserProvider;
+import com.docintel.shared.auth.CurrentUserProvider;
 import com.docintel.modules.user.domain.User;
 import com.docintel.modules.user.domain.UserRepository;
 import lombok.RequiredArgsConstructor;

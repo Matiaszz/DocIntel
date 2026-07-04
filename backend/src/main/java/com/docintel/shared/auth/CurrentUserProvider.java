@@ -1,4 +1,4 @@
-package com.docintel.shared.infrastructure.security;
+package com.docintel.shared.auth;
 
 import com.docintel.modules.user.domain.User;
 import com.docintel.modules.user.domain.UserRepository;

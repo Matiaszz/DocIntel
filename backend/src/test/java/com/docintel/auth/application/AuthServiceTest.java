@@ -9,7 +9,7 @@ import com.docintel.modules.auth.presentation.dto.request.ForgotPasswordRequest;
 import com.docintel.modules.auth.presentation.dto.request.ResetPasswordRequest;
 import com.docintel.modules.auth.application.AuthService;
 import com.docintel.modules.auth.application.JwtService;
-import com.docintel.shared.infrastructure.email.EmailSender;
+import com.docintel.shared.contracts.EmailSender;
 import com.docintel.modules.auth.infrastructure.exception.EmailAlreadyInUseException;
 import com.docintel.modules.auth.presentation.dto.request.RegisterRequest;
 import com.docintel.modules.user.presentation.dto.response.UserResponse;

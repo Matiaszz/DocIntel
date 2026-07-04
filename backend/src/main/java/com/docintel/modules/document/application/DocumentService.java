@@ -12,8 +12,8 @@ import com.docintel.modules.document.presentation.dto.response.UploadInitiateRes
 import com.docintel.modules.folder.application.FolderService;
 import com.docintel.modules.folder.domain.Folder;
 import com.docintel.modules.folder.domain.FolderRepository;
-import com.docintel.shared.infrastructure.security.CurrentUserProvider;
-import com.docintel.shared.infrastructure.storage.FileStorage;
+import com.docintel.shared.auth.CurrentUserProvider;
+import com.docintel.shared.contracts.FileStorage;
 import com.docintel.modules.user.domain.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -37,7 +37,7 @@ import java.util.zip.ZipOutputStream;
 
 import com.docintel.modules.folder.domain.FolderPermissionRepository;
 
-import static com.docintel.shared.infrastructure.mappers.DocumentMapper.mapToDocumentDTO;
+import static com.docintel.modules.document.mapper.DocumentMapper.mapToDocumentDTO;
 
 @Service
 @RequiredArgsConstructor

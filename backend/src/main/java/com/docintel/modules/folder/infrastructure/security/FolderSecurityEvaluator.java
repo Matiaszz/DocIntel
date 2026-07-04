@@ -5,7 +5,7 @@ import com.docintel.modules.folder.domain.FolderPermission;
 import com.docintel.modules.folder.domain.FolderPermissionRepository;
 import com.docintel.modules.folder.domain.FolderRepository;
 import com.docintel.modules.folder.domain.enums.FolderRole;
-import com.docintel.shared.infrastructure.security.CurrentUserProvider;
+import com.docintel.shared.auth.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

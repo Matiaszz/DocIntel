@@ -1,6 +1,6 @@
-package com.docintel.shared.infrastructure.email.providers;
+package com.docintel.shared.infrastructure.cloud.aws;
 
-import com.docintel.shared.infrastructure.email.EmailSender;
+import com.docintel.shared.contracts.EmailSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

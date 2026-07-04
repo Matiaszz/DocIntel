@@ -1,6 +1,6 @@
 package com.docintel.modules.document.presentation.dto.request;
 
-import com.docintel.shared.infrastructure.storage.CompletedPartDTO;
+import com.docintel.shared.dto.CompletedPartDTO;
 
 import java.util.List;
 

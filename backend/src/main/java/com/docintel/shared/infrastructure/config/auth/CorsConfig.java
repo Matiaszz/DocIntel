@@ -1,4 +1,4 @@
-package com.docintel.shared.infrastructure.config;
+package com.docintel.shared.infrastructure.config.auth;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

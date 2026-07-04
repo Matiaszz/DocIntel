@@ -1,6 +1,6 @@
-package com.docintel.shared.infrastructure.email.providers;
+package com.docintel.shared.infrastructure.cloud.azure;
 
-import com.docintel.shared.infrastructure.email.EmailSender;
+import com.docintel.shared.contracts.EmailSender;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 

@@ -1,4 +1,4 @@
-package com.docintel.shared.infrastructure.storage;
+package com.docintel.shared.dto;
 
 public record CompletedPartDTO(int partNumber, String eTag) {
 }

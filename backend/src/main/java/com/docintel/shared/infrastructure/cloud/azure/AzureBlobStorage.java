@@ -1,9 +1,9 @@
-package com.docintel.shared.infrastructure.storage.providers;
+package com.docintel.shared.infrastructure.cloud.azure;
 
-import com.docintel.shared.infrastructure.storage.FileStorage;
+import com.docintel.shared.contracts.FileStorage;
+import com.docintel.shared.dto.CompletedPartDTO;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 import java.util.UUID;
@@ -46,7 +46,7 @@ public class AzureBlobStorage implements FileStorage {
     }
 
     @Override
-    public void completeMultipartUpload(String key, String uploadId, java.util.List<com.docintel.shared.infrastructure.storage.CompletedPartDTO> parts) {
+    public void completeMultipartUpload(String key, String uploadId, java.util.List<CompletedPartDTO> parts) {
         throw new UnsupportedOperationException("Azure Blob Storage is not implemented.");
     }
 

@@ -11,7 +11,7 @@ import com.docintel.modules.document.presentation.dto.response.FolderResponseDTO
 import com.docintel.modules.document.presentation.dto.response.UploadInitiateResponseDTO;
 import com.docintel.modules.folder.application.FolderService;
 import com.docintel.modules.folder.domain.Folder;
-import com.docintel.shared.infrastructure.security.CurrentUserProvider;
+import com.docintel.shared.auth.CurrentUserProvider;
 import com.docintel.modules.user.application.UserService;
 import com.docintel.modules.user.domain.User;
 import lombok.RequiredArgsConstructor;
