@@ -23,6 +23,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.zip.ZipOutputStream;
 
@@ -113,10 +114,10 @@ public class DocumentController {
     }
 
     @GetMapping("/{id}/presigned-url")
-    public ResponseEntity<java.util.Map<String, String>> getPresignedUrl(@PathVariable UUID id) {
+    public ResponseEntity<Map<String, String>> getPresignedUrl(@PathVariable UUID id) {
         Document doc = documentService.getDocument(id);
         String presignedUrl = documentService.generatePresignedDownloadUrl(doc);
-        return ResponseEntity.ok(java.util.Map.of("url", presignedUrl));
+        return ResponseEntity.ok(Map.of("url", presignedUrl));
     }
 
     @GetMapping("/download/{id}")

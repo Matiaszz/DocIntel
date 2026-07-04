@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -54,13 +55,16 @@ public class DocumentService {
         User currentUser = currentUserProvider.getCurrentUser();
 
         // 1. Resolve and create folders dynamically from path
-        Folder targetFolder = folderService.resolveAndCreatePath(request.relativePath(), request.parentFolderId(), currentUser);
+        Folder targetFolder = folderService.resolveAndCreatePath(
+                request.relativePath(),
+                request.parentFolderId(),
+                currentUser);
 
         String fileName = request.name();
         if (fileName == null || fileName.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File name could not be resolved.");
         }
-        fileName = new java.io.File(fileName).getName();
+        fileName = new File(fileName).getName();
 
         DocumentCategory documentCategory = request.category();
         UUID documentId = UUID.randomUUID();

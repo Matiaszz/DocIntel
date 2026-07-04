@@ -28,6 +28,7 @@ import {
   Pause,
 } from "lucide-react";
 import { fetchClient, getAccessToken } from "../../lib/api";
+import { uploadToS3, uploadPartToS3, downloadFromS3 } from "../../lib/s3";
 import { useCategories } from "../../hooks/useCategories";
 import FeedbackModal from "./FeedbackModal";
 import Image from "next/image";
@@ -396,7 +397,6 @@ export default function DocumentManagement() {
         completedParts,
       );
     } catch (err) {
-      console.error("Initiate upload error:", err);
       if (transferId) {
         updateTransferStatus(
           transferId,
@@ -423,19 +423,8 @@ export default function DocumentManagement() {
         `[Upload] Iniciando upload de "${file.name}". Tamanho: ${file.size} bytes. Modo multipart: ${isMultipart}`,
       );
       if (!isMultipart) {
-        console.log("[Upload] Enviando arquivo em parte única...");
-        const response = await fetch(uploadUrl, {
-          method: "PUT",
-          body: file,
-        });
+        await uploadToS3(uploadUrl, file);
 
-        if (!response.ok) {
-          throw new Error("Falha ao enviar arquivo para o storage.");
-        }
-
-        console.log(
-          "[Upload] Envio finalizado no storage. Confirmando conclusão no backend...",
-        );
         updateTransferProgress(id, 90);
 
         await fetchClient.internal.request(`/api/documents/${id}/complete`, {
@@ -443,51 +432,27 @@ export default function DocumentManagement() {
           body: {},
         });
 
-        console.log("[Upload] Upload finalizado com sucesso!");
         await deleteFile(id);
         updateTransferStatus(id, "completed", 100);
       } else {
         const totalParts = uploadUrls.length;
-        console.log(
-          `[Upload] Iniciando upload multipart em ${totalParts} partes.`,
-        );
 
         for (let i = 0; i < totalParts; i++) {
           const partNumber = i + 1;
           const isUploaded = completedParts.some(
             (p) => p.partNumber === partNumber,
           );
-          if (isUploaded) {
-            console.log(
-              `[Upload] Parte ${partNumber}/${totalParts} já carregada anteriormente. Pulando...`,
-            );
-            continue;
-          }
+          if (isUploaded) continue;
 
           const currentItem = await getLatestTransferItem(id);
-          if (currentItem && currentItem.status !== "transferring") {
-            console.log(
-              `[Upload] Status mudou para ${currentItem.status}. Interrompendo upload na parte ${partNumber}.`,
-            );
-            return;
-          }
+          if (currentItem && currentItem.status !== "transferring") return;
 
           const start = i * partSize;
           const end = Math.min(start + partSize, file.size);
           const slice = file.slice(start, end);
           const partUrl = uploadUrls[i];
 
-          console.log(
-            `[Upload] Enviando parte ${partNumber}/${totalParts} (${slice.size} bytes)...`,
-          );
-          const response = await fetch(partUrl, {
-            method: "PUT",
-            body: slice,
-          });
-
-          if (!response.ok) {
-            throw new Error(`Falha no envio da parte ${partNumber}.`);
-          }
+          const response = await uploadPartToS3(partUrl, slice);
 
           const eTag = response.headers.get("ETag");
           if (!eTag) {
@@ -510,18 +475,12 @@ export default function DocumentManagement() {
           const progressPercent = Math.round(
             (completedParts.length / totalParts) * 90,
           );
-          console.log(
-            `[Upload] Parte ${partNumber}/${totalParts} enviada com sucesso (ETag: ${cleanETag}). Progresso: ${progressPercent}%`,
-          );
           updateTransferProgressAndParts(id, progressPercent, completedParts);
         }
 
         // Ordenação ascendente por número da parte (exigência estrita do S3)
         completedParts.sort((a, b) => a.partNumber - b.partNumber);
 
-        console.log(
-          "[Upload] Todas as partes enviadas. Solicitando finalização do multipart ao backend...",
-        );
         await fetchClient.internal.request(`/api/documents/${id}/complete`, {
           method: "POST",
           body: {
@@ -530,7 +489,6 @@ export default function DocumentManagement() {
           },
         });
 
-        console.log("[Upload] Upload multipart finalizado com sucesso!");
         await deleteFile(id);
         updateTransferStatus(id, "completed", 100);
       }
@@ -619,96 +577,6 @@ export default function DocumentManagement() {
       saveTransfersToLocalStorage(updated);
       return updated;
     });
-  };
-
-  const startBackgroundDownload = async (node: TreeNode) => {
-    const id = `download_${node.id}_${Date.now()}`;
-    const newItem: TransferItem = {
-      id,
-      type: "download",
-      name: node.name,
-      size: 0,
-      progress: 0,
-      status: "transferring",
-      completedParts: [],
-    };
-
-    setShowTransfersWidget(true);
-    setTransfers((prev) => {
-      const updated = [newItem, ...prev];
-      saveTransfersToLocalStorage(updated);
-      return updated;
-    });
-
-    try {
-      const presignedData = await fetchClient.internal.request<{ url: string }>(
-        `/api/documents/${node.id}/presigned-url`,
-      );
-
-      const response = await fetch(presignedData.url);
-      if (!response.ok) {
-        throw new Error("Erro de resposta do storage.");
-      }
-
-      const contentLength = response.headers.get("content-length");
-      const totalSize = contentLength ? parseInt(contentLength, 10) : 0;
-
-      setTransfers((prev) => {
-        const updated = prev.map((t) =>
-          t.id === id ? { ...t, size: totalSize } : t,
-        );
-        saveTransfersToLocalStorage(updated);
-        return updated;
-      });
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("Não foi possível ler o fluxo de download.");
-      }
-
-      const chunks: Uint8Array[] = [];
-      let receivedLength = 0;
-
-      while (true) {
-        const currentItem = await getLatestTransferItem(id);
-        if (currentItem && currentItem.status === "paused") {
-          break;
-        }
-
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        chunks.push(value);
-        receivedLength += value.length;
-
-        if (totalSize > 0) {
-          const progressPercent = Math.round(
-            (receivedLength / totalSize) * 100,
-          );
-          updateTransferProgress(id, progressPercent);
-        }
-      }
-
-      const blob = new Blob(chunks as any);
-      const blobUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = node.name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(blobUrl);
-
-      updateTransferStatus(id, "completed", 100);
-    } catch (err) {
-      console.error("Download error:", err);
-      updateTransferStatus(
-        id,
-        "error",
-        undefined,
-        err instanceof Error ? err.message : "Erro desconhecido",
-      );
-    }
   };
 
   const handleResumeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -910,37 +778,42 @@ export default function DocumentManagement() {
   const downloadBlob = async (url: string, filename: string) => {
     try {
       setLoading(true);
-      let downloadUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}${url}`;
-      const headers: Record<string, string> = {};
-
       if (url.includes("/api/documents/download/")) {
         const docId = url.split("/").pop();
         const presignedData = await fetchClient.internal.request<{
           url: string;
         }>(`/api/documents/${docId}/presigned-url`);
-        downloadUrl = presignedData.url;
+
+        const blob = await downloadFromS3(presignedData.url, () => {});
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(blobUrl);
       } else {
+        const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}${url}`;
+        const headers: Record<string, string> = {};
         const token = getAccessToken();
         if (token) {
           headers["Authorization"] = `Bearer ${token}`;
         }
+        const response = await fetch(downloadUrl, { headers });
+        if (!response.ok) {
+          throw new Error("Falha ao baixar o arquivo.");
+        }
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(blobUrl);
       }
-
-      const response = await fetch(downloadUrl, { headers });
-
-      if (!response.ok) {
-        throw new Error("Falha ao baixar o arquivo.");
-      }
-
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
       console.error(err);
       setError("Falha ao baixar o arquivo.");
@@ -956,13 +829,7 @@ export default function DocumentManagement() {
         `/api/documents/${node.id}/presigned-url`,
       );
 
-      const response = await fetch(presignedData.url);
-
-      if (!response.ok) {
-        throw new Error("Falha ao visualizar o arquivo.");
-      }
-
-      const blob = await response.blob();
+      const blob = await downloadFromS3(presignedData.url, () => {});
       const objectUrl = window.URL.createObjectURL(blob);
       setPreviewUrl(objectUrl);
       setPreviewFileName(node.name);

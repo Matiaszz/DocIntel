@@ -127,25 +127,6 @@ public class AwsS3Storage implements FileStorage {
         }
     }
 
-    private void deleteFile(String key){
-        s3.deleteObject(
-                DeleteObjectRequest.builder()
-                        .bucket(bucketName)
-                        .key(key)
-                        .build()
-        );
-    }
-
-    private void putFile(String key, byte[] content, Map<String, String> metadata) {
-        s3.putObject(
-                PutObjectRequest.builder()
-                        .bucket(bucketName)
-                        .key(key)
-                        .metadata(metadata)
-                        .build(), RequestBody.fromBytes(content)
-        );
-    }
-
     @Override
     public String generatePresignedUploadUrl(String key) {
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
@@ -228,5 +209,24 @@ public class AwsS3Storage implements FileStorage {
 
         PresignedGetObjectRequest presignedGetObjectRequest = s3Presigner.presignGetObject(getObjectPresignRequest);
         return presignedGetObjectRequest.url().toString();
+    }
+
+    private void deleteFile(String key){
+        s3.deleteObject(
+                DeleteObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(key)
+                        .build()
+        );
+    }
+
+    private void putFile(String key, byte[] content, Map<String, String> metadata) {
+        s3.putObject(
+                PutObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(key)
+                        .metadata(metadata)
+                        .build(), RequestBody.fromBytes(content)
+        );
     }
 }
