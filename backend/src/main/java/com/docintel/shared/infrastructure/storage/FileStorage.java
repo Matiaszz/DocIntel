@@ -3,6 +3,7 @@ package com.docintel.shared.infrastructure.storage;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.util.List;
 import java.util.UUID;
 
 public interface FileStorage {
@@ -16,6 +17,16 @@ public interface FileStorage {
     void deleteFile(UUID userId, UUID fileId);
 
     boolean deleteProfilePicture(UUID userId, UUID fileId);
+
+    String generatePresignedUploadUrl(String key);
+
+    String initiateMultipartUpload(String key);
+
+    String generatePresignedUploadPartUrl(String key, String uploadId, int partNumber);
+
+    void completeMultipartUpload(String key, String uploadId, List<CompletedPartDTO> parts);
+
+    String generatePresignedDownloadUrl(String key);
 
     default String getUserPath(UUID userId){
         return "users/" + userId.toString() + "/";

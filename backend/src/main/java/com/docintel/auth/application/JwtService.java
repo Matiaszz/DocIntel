@@ -37,6 +37,7 @@ public class JwtService {
                     .claim("email", user.getEmail())
                     .claim("firstName", user.getFirstName())
                     .claim("lastName", user.getLastName())
+                    .claim("isEmailVerified", user.isEmailVerified())
                     .issuer("docintel")
                     .issueTime(new Date())
                     .expirationTime(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION))

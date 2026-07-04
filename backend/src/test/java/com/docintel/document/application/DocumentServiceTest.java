@@ -1,8 +1,10 @@
 package com.docintel.document.application;
 
 import com.docintel.document.domain.Document;
+import com.docintel.document.domain.DocumentCategory;
 import com.docintel.document.domain.DocumentRepository;
-import com.docintel.document.presentation.dto.FileTreeViewDTO;
+import com.docintel.document.domain.DocumentStatus;
+import com.docintel.document.presentation.dto.*;
 import com.docintel.folder.application.FolderService;
 import com.docintel.folder.domain.Folder;
 import com.docintel.folder.domain.FolderPermissionRepository;
@@ -16,7 +18,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.ByteArrayInputStream;
@@ -58,7 +59,7 @@ public class DocumentServiceTest {
     private DocumentService documentService;
 
     @Test
-    void shouldUploadDocumentSuccessfully() {
+    void shouldInitiateSinglePartUploadSuccessfully() {
         // Arrange
         User user = new User();
         user.setId(UUID.randomUUID());
@@ -66,92 +67,106 @@ public class DocumentServiceTest {
         Folder folder = new Folder();
         folder.setId(UUID.randomUUID());
 
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.getOriginalFilename()).thenReturn("test.pdf");
+        UploadInitiateRequestDTO request = new UploadInitiateRequestDTO(
+                "test.pdf", 1024L * 1024L, "finance/", null, DocumentCategory.INVOICE
+        );
 
         when(currentUserProvider.getCurrentUser()).thenReturn(user);
         when(folderService.resolveAndCreatePath("finance/", null, user)).thenReturn(folder);
-        when(fileStorage.uploadFile(eq(file), eq(user.getId()), any(UUID.class))).thenReturn(true);
         when(fileStorage.resolveFileKey(any(UUID.class), eq("test.pdf"))).thenReturn("resolved-s3-key");
+        when(fileStorage.generatePresignedUploadUrl("resolved-s3-key")).thenReturn("presigned-put-url");
 
         Document savedDoc = new Document();
         savedDoc.setId(UUID.randomUUID());
+        savedDoc.setName("test.pdf");
+        savedDoc.setS3Key("resolved-s3-key");
+        savedDoc.setFolder(folder);
+        savedDoc.setOwner(user);
+        savedDoc.setStatus(DocumentStatus.PENDING);
         when(documentRepository.save(any(Document.class))).thenReturn(savedDoc);
 
         // Act
-        Document result = documentService.uploadDocument(file, "finance/", null, "INVOICE");
+        UploadInitiateResponseDTO result = documentService.initiateUpload(request);
 
         // Assert
         assertNotNull(result);
-        assertEquals(savedDoc, result);
-        verify(documentRepository).save(any(Document.class));
+        assertFalse(result.isMultipart());
+        assertEquals("presigned-put-url", result.uploadUrl());
+        assertEquals("test.pdf", result.document().name());
+        assertEquals(DocumentStatus.PENDING, result.document().status());
     }
 
     @Test
-    void shouldThrowInternalServerErrorWhenUploadFails() {
+    void shouldInitiateMultipartUploadSuccessfully() {
         // Arrange
         User user = new User();
         user.setId(UUID.randomUUID());
 
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.getOriginalFilename()).thenReturn("test.pdf");
+        Folder folder = new Folder();
+        folder.setId(UUID.randomUUID());
+
+        // 12 MB -> 3 parts of 5 MB
+        UploadInitiateRequestDTO request = new UploadInitiateRequestDTO(
+                "large.zip", 12L * 1024L * 1024L,
+                "archive/", null, DocumentCategory.GENERAL
+        );
 
         when(currentUserProvider.getCurrentUser()).thenReturn(user);
-        when(fileStorage.uploadFile(eq(file), eq(user.getId()), any(UUID.class))).thenReturn(false);
+        when(folderService.resolveAndCreatePath("archive/", null, user)).thenReturn(folder);
+        when(fileStorage.resolveFileKey(any(UUID.class), eq("large.zip"))).thenReturn("large-s3-key");
+        when(fileStorage.initiateMultipartUpload("large-s3-key")).thenReturn("upload-id-123");
+        when(fileStorage.generatePresignedUploadPartUrl(eq("large-s3-key"), eq("upload-id-123"), anyInt()))
+                .thenAnswer(invocation -> "part-url-" + invocation.getArgument(2));
 
-        // Act & Assert
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-            documentService.uploadDocument(file, "finance/", null, "INVOICE");
-        });
-
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getStatusCode());
-        assertEquals("Failed to upload file to cloud storage.", exception.getReason());
-        verify(documentRepository, never()).save(any(Document.class));
-    }
-
-    @Test
-    void shouldResolveFileNameFromRelativePathWhenOriginalFilenameIsEmpty() {
-        // Arrange
-        User user = new User();
-        user.setId(UUID.randomUUID());
-
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.getOriginalFilename()).thenReturn("");
-
-        when(currentUserProvider.getCurrentUser()).thenReturn(user);
-        when(folderService.isFilePath("finance/file.pdf")).thenReturn(true);
-        when(folderService.extractFileName("finance/file.pdf")).thenReturn("file.pdf");
-        when(fileStorage.uploadFile(eq(file), eq(user.getId()), any(UUID.class))).thenReturn(true);
-        when(documentRepository.save(any(Document.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        Document savedDoc = new Document();
+        savedDoc.setId(UUID.randomUUID());
+        savedDoc.setName("large.zip");
+        savedDoc.setS3Key("large-s3-key");
+        savedDoc.setFolder(folder);
+        savedDoc.setOwner(user);
+        savedDoc.setStatus(DocumentStatus.PENDING);
+        savedDoc.setUploadId("upload-id-123");
+        when(documentRepository.save(any(Document.class))).thenReturn(savedDoc);
 
         // Act
-        Document result = documentService.uploadDocument(file, "finance/file.pdf", null, "GENERAL");
+        UploadInitiateResponseDTO result = documentService.initiateUpload(request);
 
         // Assert
         assertNotNull(result);
-        assertEquals("file.pdf", result.getName());
+        assertTrue(result.isMultipart());
+        assertEquals("upload-id-123", result.uploadId());
+        assertEquals(3, result.uploadUrls().size());
+        assertEquals("part-url-1", result.uploadUrls().get(0));
+        assertEquals("part-url-2", result.uploadUrls().get(1));
+        assertEquals("part-url-3", result.uploadUrls().get(2));
     }
 
     @Test
-    void shouldSanitizeFileNameToPreventPathTraversalAndZipSlip() {
+    void shouldCompleteUploadSuccessfully() {
         // Arrange
         User user = new User();
         user.setId(UUID.randomUUID());
-
-        MultipartFile file = mock(MultipartFile.class);
-        // Malicious name
-        when(file.getOriginalFilename()).thenReturn("../../../etc/passwd");
-
         when(currentUserProvider.getCurrentUser()).thenReturn(user);
-        when(fileStorage.uploadFile(eq(file), eq(user.getId()), any(UUID.class))).thenReturn(true);
+
+        UUID docId = UUID.randomUUID();
+        Document pendingDoc = new Document();
+        pendingDoc.setId(docId);
+        pendingDoc.setName("test.pdf");
+        pendingDoc.setS3Key("resolved-s3-key");
+        pendingDoc.setOwner(user);
+        pendingDoc.setStatus(DocumentStatus.PENDING);
+
+        when(documentRepository.findById(docId)).thenReturn(Optional.of(pendingDoc));
         when(documentRepository.save(any(Document.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
+        UploadCompleteRequestDTO request = new UploadCompleteRequestDTO(null, null);
+
         // Act
-        Document result = documentService.uploadDocument(file, null, null, "GENERAL");
+        DocumentDTO result = documentService.completeUpload(docId, request);
 
         // Assert
         assertNotNull(result);
-        assertEquals("passwd", result.getName());
+        assertEquals(DocumentStatus.UPLOADED, result.status());
     }
 
     @Test

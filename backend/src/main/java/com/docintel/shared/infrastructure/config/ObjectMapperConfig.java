@@ -1,4 +1,4 @@
-package com.docintel.shared.config;
+package com.docintel.shared.infrastructure.config;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;

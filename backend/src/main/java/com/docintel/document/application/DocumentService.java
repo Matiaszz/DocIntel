@@ -3,7 +3,8 @@ package com.docintel.document.application;
 import com.docintel.document.domain.Document;
 import com.docintel.document.domain.DocumentCategory;
 import com.docintel.document.domain.DocumentRepository;
-import com.docintel.document.presentation.dto.FileTreeViewDTO;
+import com.docintel.document.domain.DocumentStatus;
+import com.docintel.document.presentation.dto.*;
 import com.docintel.folder.application.FolderService;
 import com.docintel.folder.domain.Folder;
 import com.docintel.folder.domain.FolderRepository;
@@ -17,7 +18,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
@@ -32,6 +32,8 @@ import java.util.zip.ZipOutputStream;
 
 import com.docintel.folder.domain.FolderPermissionRepository;
 
+import static com.docintel.shared.infrastructure.mappers.DocumentMapper.mapToDocumentDTO;
+
 @Service
 @RequiredArgsConstructor
 public class DocumentService {
@@ -44,53 +46,91 @@ public class DocumentService {
     private final CurrentUserProvider currentUserProvider;
 
     /**
-     * Resolves the target folder, uploads the physical file via FileStorage,
-     * and saves document metadata with links to the folder tree.
+     * Initiates a client-side upload by registering the document metadata
+     * and generating presigned URLs (single or multipart depending on size).
      */
     @Transactional
-    public Document uploadDocument(
-            MultipartFile file, String relativePath,
-            UUID parentFolderId, String category
-    ) {
+    public UploadInitiateResponseDTO initiateUpload(UploadInitiateRequestDTO request) {
         User currentUser = currentUserProvider.getCurrentUser();
 
         // 1. Resolve and create folders dynamically from path
-        Folder targetFolder = folderService.resolveAndCreatePath(relativePath, parentFolderId, currentUser);
+        Folder targetFolder = folderService.resolveAndCreatePath(request.relativePath(), request.parentFolderId(), currentUser);
 
-        String fileName = file.getOriginalFilename();
+        String fileName = request.name();
         if (fileName == null || fileName.trim().isEmpty()) {
-            if (relativePath == null || !folderService.isFilePath(relativePath)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File name could not be resolved.");
-            }
-
-            if (folderService.isFilePath(relativePath)) {
-                fileName = folderService.extractFileName(relativePath);
-            }
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File name could not be resolved.");
         }
+        fileName = new java.io.File(fileName).getName();
 
-        if (fileName != null) {
-            fileName = new java.io.File(fileName).getName();
-        }
-
-        DocumentCategory documentCategory = DocumentCategory.fromString(category);
+        DocumentCategory documentCategory = request.category();
         UUID documentId = UUID.randomUUID();
+        String s3Key = fileStorage.resolveFileKey(documentId, fileName);
 
-        // 3. Upload to cloud storage
-        boolean uploaded = fileStorage.uploadFile(file, currentUser.getId(), documentId);
-        if (!uploaded) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to upload file to cloud storage.");
-        }
-
-        // 4. Save metadata to DB (Leverages Persistable<UUID> for clean manually-assigned ID insert)
+        // 2. Create metadata in PENDING state
         Document document = new Document();
         document.setId(documentId);
         document.setName(fileName);
-        document.setS3Key(fileStorage.resolveFileKey(documentId, fileName));
+        document.setS3Key(s3Key);
         document.setFolder(targetFolder);
         document.setOwner(currentUser);
         document.setCategory(documentCategory != null ? documentCategory : DocumentCategory.GENERAL);
+        document.setStatus(DocumentStatus.PENDING);
 
-        return documentRepository.save(document);
+        long size = request.size();
+        long multipartThreshold = 5 * 1024 * 1024; // 5MB
+
+        boolean isMultipart = size > multipartThreshold;
+        String uploadUrl = null;
+        String uploadId = null;
+        List<String> uploadUrls = new ArrayList<>();
+        long partSize = 5 * 1024 * 1024; // 5MB
+
+        if (isMultipart) {
+            uploadId = fileStorage.initiateMultipartUpload(s3Key);
+            document.setUploadId(uploadId);
+
+            int numParts = (int) Math.ceil((double) size / partSize);
+            for (int i = 1; i <= numParts; i++) {
+                String partUrl = fileStorage.generatePresignedUploadPartUrl(s3Key, uploadId, i);
+                uploadUrls.add(partUrl);
+            }
+        } else {
+            uploadUrl = fileStorage.generatePresignedUploadUrl(s3Key);
+        }
+
+        Document saved = documentRepository.save(document);
+        DocumentDTO dto = mapToDocumentDTO(saved);
+
+        return new UploadInitiateResponseDTO(dto, isMultipart, uploadUrl, uploadId, uploadUrls, partSize);
+    }
+
+    /**
+     * Completes a document upload, confirming the single upload or completing the multipart upload on S3.
+     */
+    @Transactional
+    public DocumentDTO completeUpload(UUID documentId, UploadCompleteRequestDTO request) {
+        Document document = getDocument(documentId);
+
+        if (document.getStatus() == DocumentStatus.UPLOADED) {
+            return mapToDocumentDTO(document);
+        }
+
+        if (document.getUploadId() != null) {
+            // Multipart upload completion
+            if (request.completedParts() == null || request.completedParts().isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parts list is required to complete multipart upload.");
+            }
+            fileStorage.completeMultipartUpload(document.getS3Key(), document.getUploadId(), request.completedParts());
+        }
+
+        document.setStatus(DocumentStatus.UPLOADED);
+        Document saved = documentRepository.save(document);
+        return mapToDocumentDTO(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public String generatePresignedDownloadUrl(Document doc) {
+        return fileStorage.generatePresignedDownloadUrl(doc.getS3Key());
     }
 
     /**

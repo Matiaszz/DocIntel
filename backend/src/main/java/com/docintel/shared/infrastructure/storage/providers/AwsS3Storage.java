@@ -1,5 +1,6 @@
 package com.docintel.shared.infrastructure.storage.providers;
 
+import com.docintel.shared.infrastructure.storage.CompletedPartDTO;
 import com.docintel.shared.infrastructure.storage.FileStorage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,11 +11,16 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.*;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -28,6 +34,7 @@ public class AwsS3Storage implements FileStorage {
     private String bucketName;
 
     private final S3Client s3;
+    private final S3Presigner s3Presigner;
 
 
     @Override
@@ -137,5 +144,89 @@ public class AwsS3Storage implements FileStorage {
                         .metadata(metadata)
                         .build(), RequestBody.fromBytes(content)
         );
+    }
+
+    @Override
+    public String generatePresignedUploadUrl(String key) {
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build();
+
+        PutObjectPresignRequest putObjectPresignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(15))
+                .putObjectRequest(putObjectRequest)
+                .build();
+
+        PresignedPutObjectRequest presignedPutObjectRequest = s3Presigner.presignPutObject(putObjectPresignRequest);
+        return presignedPutObjectRequest.url().toString();
+    }
+
+    @Override
+    public String initiateMultipartUpload(String key) {
+        CreateMultipartUploadRequest createMultipartUploadRequest = CreateMultipartUploadRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build();
+
+        CreateMultipartUploadResponse response = s3.createMultipartUpload(createMultipartUploadRequest);
+        return response.uploadId();
+    }
+
+    @Override
+    public String generatePresignedUploadPartUrl(String key, String uploadId, int partNumber) {
+        UploadPartRequest uploadPartRequest = UploadPartRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .uploadId(uploadId)
+                .partNumber(partNumber)
+                .build();
+
+        UploadPartPresignRequest uploadPartPresignRequest = UploadPartPresignRequest.builder()
+                .signatureDuration(Duration.ofHours(1))
+                .uploadPartRequest(uploadPartRequest)
+                .build();
+
+        PresignedUploadPartRequest presignedUploadPartRequest = s3Presigner.presignUploadPart(uploadPartPresignRequest);
+        return presignedUploadPartRequest.url().toString();
+    }
+
+    @Override
+    public void completeMultipartUpload(String key, String uploadId, List<CompletedPartDTO> parts) {
+        List<CompletedPart> completedParts = parts.stream()
+                .map(part -> CompletedPart.builder()
+                        .partNumber(part.partNumber())
+                        .eTag(part.eTag())
+                        .build())
+                .collect(Collectors.toList());
+
+        CompletedMultipartUpload completedMultipartUpload = CompletedMultipartUpload.builder()
+                .parts(completedParts)
+                .build();
+
+        CompleteMultipartUploadRequest completeMultipartUploadRequest = CompleteMultipartUploadRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .uploadId(uploadId)
+                .multipartUpload(completedMultipartUpload)
+                .build();
+
+        s3.completeMultipartUpload(completeMultipartUploadRequest);
+    }
+
+    @Override
+    public String generatePresignedDownloadUrl(String key) {
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build();
+
+        GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(15))
+                .getObjectRequest(getObjectRequest)
+                .build();
+
+        PresignedGetObjectRequest presignedGetObjectRequest = s3Presigner.presignGetObject(getObjectPresignRequest);
+        return presignedGetObjectRequest.url().toString();
     }
 }

@@ -1,4 +1,4 @@
-package com.docintel.shared.config;
+package com.docintel.shared.infrastructure.config;
 
 import com.docintel.auth.infrastructure.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;

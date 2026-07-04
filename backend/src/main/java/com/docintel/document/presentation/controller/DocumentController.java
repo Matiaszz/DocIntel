@@ -3,9 +3,7 @@ package com.docintel.document.presentation.controller;
 import com.docintel.document.application.DocumentService;
 import com.docintel.document.domain.Document;
 import com.docintel.document.domain.DocumentCategory;
-import com.docintel.document.presentation.dto.DocumentDTO;
-import com.docintel.document.presentation.dto.FileTreeViewDTO;
-import com.docintel.document.presentation.dto.FolderDTO;
+import com.docintel.document.presentation.dto.*;
 import com.docintel.folder.application.FolderService;
 import com.docintel.folder.domain.Folder;
 import com.docintel.shared.infrastructure.security.CurrentUserProvider;
@@ -14,12 +12,12 @@ import com.docintel.user.domain.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MimeType;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.InputStream;
@@ -39,31 +37,28 @@ public class DocumentController {
     private final CurrentUserProvider userProvider;
 
     /**
-     * Endpoint to upload a file.
-     * Extracts parent folder and dynamic path from 'relativePath' and uploads the file to S3.
+     * Endpoint to initiate a client-side upload.
+     * Registers document metadata and returns upload instructions (URLs).
      */
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<DocumentDTO> uploadFile(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "relativePath", required = false) String relativePath,
-            @RequestParam(value = "parentFolderId", required = false) UUID parentFolderId,
-            @RequestParam(value = "category", required = false) String category
-            ) {
+    @PostMapping("/upload/initiate")
+    public ResponseEntity<UploadInitiateResponseDTO> initiateUpload(
+            @RequestBody UploadInitiateRequestDTO request
+    ) {
+        UploadInitiateResponseDTO response = documentService.initiateUpload(request);
+        return ResponseEntity.ok(response);
+    }
 
-        Document document = documentService.uploadDocument(file, relativePath, parentFolderId, category);
-
-        return ResponseEntity.ok(new DocumentDTO(
-                document.getId(),
-                document.getName(),
-                document.getS3Key(),
-                document.getFolder() != null ? document.getFolder().getId() : null,
-                document.getOwner().getId(),
-                null,
-                false,
-                document.getCategory(),
-                document.isFavorite(),
-                document.getTags()
-        ));
+    /**
+     * Endpoint to complete an upload.
+     * Marks the document as UPLOADED and performs multipart completion if applicable.
+     */
+    @PostMapping("/{id}/complete")
+    public ResponseEntity<DocumentDTO> completeUpload(
+            @PathVariable UUID id,
+            @RequestBody UploadCompleteRequestDTO request
+    ) {
+        DocumentDTO completed = documentService.completeUpload(id, request);
+        return ResponseEntity.ok(completed);
     }
 
     /**
@@ -117,42 +112,29 @@ public class DocumentController {
         return ResponseEntity.ok(categories);
     }
 
-    @GetMapping("/download/{id}")
-    public ResponseEntity<StreamingResponseBody> downloadDocument(@PathVariable UUID id) {
+    @GetMapping("/{id}/presigned-url")
+    public ResponseEntity<java.util.Map<String, String>> getPresignedUrl(@PathVariable UUID id) {
         Document doc = documentService.getDocument(id);
-        StreamingResponseBody responseBody = outputStream -> {
-            try (InputStream is = documentService.downloadDocumentStream(doc)) {
-                if (is != null) {
-                    is.transferTo(outputStream);
-                }
-            }
-        };
+        String presignedUrl = documentService.generatePresignedDownloadUrl(doc);
+        return ResponseEntity.ok(java.util.Map.of("url", presignedUrl));
+    }
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + doc.getName() + "\"")
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(responseBody);
+    @GetMapping("/download/{id}")
+    public ResponseEntity<Void> downloadDocument(@PathVariable UUID id) {
+        Document doc = documentService.getDocument(id);
+        String presignedUrl = documentService.generatePresignedDownloadUrl(doc);
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(java.net.URI.create(presignedUrl))
+                .build();
     }
 
     @GetMapping("/view/{id}")
-    public ResponseEntity<StreamingResponseBody> viewDocument(@PathVariable UUID id) {
+    public ResponseEntity<Void> viewDocument(@PathVariable UUID id) {
         Document doc = documentService.getDocument(id);
-        StreamingResponseBody responseBody = outputStream -> {
-            try (InputStream is = documentService.downloadDocumentStream(doc)) {
-                if (is != null) {
-                    is.transferTo(outputStream);
-                }
-            }
-        };
-
-        String contentType = MediaTypeFactory.getMediaType(doc.getName())
-                .map(MimeType::toString)
-                .orElse(MediaType.APPLICATION_OCTET_STREAM_VALUE);
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + doc.getName() + "\"")
-                .contentType(MediaType.parseMediaType(contentType))
-                .body(responseBody);
+        String presignedUrl = documentService.generatePresignedDownloadUrl(doc);
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(java.net.URI.create(presignedUrl))
+                .build();
     }
 
     @DeleteMapping("/{id}")
@@ -206,7 +188,8 @@ public class DocumentController {
                 doc.isAnalyzed(),
                 doc.getCategory(),
                 doc.isFavorite(),
-                doc.getTags()
+                doc.getTags(),
+                doc.getStatus()
         ));
         return ResponseEntity.ok(dtoPage);
     }
@@ -224,7 +207,8 @@ public class DocumentController {
                 document.isAnalyzed(),
                 document.getCategory(),
                 document.isFavorite(),
-                document.getTags()
+                document.getTags(),
+                document.getStatus()
         ));
     }
 
@@ -245,7 +229,8 @@ public class DocumentController {
                 document.isAnalyzed(),
                 document.getCategory(),
                 document.isFavorite(),
-                document.getTags()
+                document.getTags(),
+                document.getStatus()
         ));
     }
 }

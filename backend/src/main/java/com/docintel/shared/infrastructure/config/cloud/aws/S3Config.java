@@ -1,4 +1,4 @@
-package com.docintel.shared.config.cloud.aws;
+package com.docintel.shared.infrastructure.config.cloud.aws;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,6 +8,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 @Slf4j
 @Configuration
@@ -32,8 +33,16 @@ public class S3Config {
                 .build();
 
         testConnection(client);
-
         return client;
+    }
+
+    @Bean
+    public S3Presigner s3Presigner() {
+        AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
+        return S3Presigner.builder()
+                .region(Region.of(region))
+                .credentialsProvider(StaticCredentialsProvider.create(credentials))
+                .build();
     }
 
     private void testConnection(S3Client client) {

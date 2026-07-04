@@ -1,4 +1,4 @@
-package com.docintel.shared.config;
+package com.docintel.shared.infrastructure.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

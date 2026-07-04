@@ -25,6 +25,13 @@ public class Document implements Persistable<UUID> {
     @Column(nullable = false)
     private String s3Key;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private DocumentStatus status = DocumentStatus.PENDING;
+
+    @Column(name = "upload_id")
+    private String uploadId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "folder_id")
     private Folder folder;

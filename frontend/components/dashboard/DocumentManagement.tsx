@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Folder,
   FolderPlus,
@@ -24,10 +24,13 @@ import {
   X,
   Star,
   Tag,
+  Play,
+  Pause,
 } from "lucide-react";
 import { fetchClient, getAccessToken } from "../../lib/api";
 import { useCategories } from "../../hooks/useCategories";
 import FeedbackModal from "./FeedbackModal";
+import Image from "next/image";
 
 interface TreeNode {
   id: string;
@@ -42,9 +45,116 @@ interface TreeNode {
   tags?: string;
 }
 
+interface TransferItem {
+  id: string;
+  type: "upload" | "download";
+  name: string;
+  size: number;
+  progress: number;
+  status: "transferring" | "paused" | "error" | "completed" | "interrupted";
+  errorMsg?: string;
+  file?: File;
+  isMultipart?: boolean;
+  uploadUrl?: string;
+  uploadId?: string;
+  uploadUrls?: string[];
+  partSize?: number;
+  completedParts?: { partNumber: number; eTag: string }[];
+  category?: string;
+  folderId?: string;
+}
+
+const DB_NAME = "DocIntelTransfersDB";
+const STORE_NAME = "files";
+
+const openDB = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const storeFile = async (id: string, file: File): Promise<void> => {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.put(file, id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (e) {
+    console.error("IndexedDB store error:", e);
+  }
+};
+
+const getFile = async (id: string): Promise<File | null> => {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, "readonly");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.get(id);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  } catch (e) {
+    console.error("IndexedDB get error:", e);
+    return null;
+  }
+};
+
+const deleteFile = async (id: string): Promise<void> => {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (e) {
+    console.error("IndexedDB delete error:", e);
+  }
+};
+
+const LOADING_PHRASES = [
+  "Buscando o arquivo no servidor...",
+  "Lendo o cabeçalho do documento...",
+  "Passando um cafézinho enquanto decodificamos os bytes...",
+  "Organizando a mesa para ler as páginas...",
+  "Descriptografando segredos binários...",
+  "Polindo as letras para você ler melhor...",
+  "Traduzindo os bits em pixels bonitos...",
+  "Quase pronto! Preparando o visualizador...",
+  "Só mais um segundo, estamos ajeitando tudo...",
+];
+
 export default function DocumentManagement() {
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPhraseIndex, setLoadingPhraseIndex] = useState(0);
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadingPhraseIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setLoadingPhraseIndex((prev) => (prev + 1) % LOADING_PHRASES.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [loading]);
+
   const [error, setError] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
 
@@ -64,6 +174,553 @@ export default function DocumentManagement() {
     useState(false);
   const [categorySearchQuery, setCategorySearchQuery] = useState("");
   const [uploadProgress, setUploadProgress] = useState(false);
+
+  // Background transfers state
+  const [transfers, setTransfers] = useState<TransferItem[]>([]);
+  const [showTransfersWidget, setShowTransfersWidget] = useState(false);
+  const [resumingId, setResumingId] = useState<string | null>(null);
+  const resumeInputRef = useRef<HTMLInputElement>(null);
+  const transfersRef = useRef<TransferItem[]>([]);
+
+  useEffect(() => {
+    transfersRef.current = transfers;
+  }, [transfers]);
+
+  const saveTransfersToLocalStorage = (items: TransferItem[]) => {
+    const serializable = items.map(({ file, ...rest }) => rest);
+    localStorage.setItem(
+      "docintel_pending_transfers",
+      JSON.stringify(serializable),
+    );
+  };
+
+  useEffect(() => {
+    const restoreTransfers = async () => {
+      const stored = localStorage.getItem("docintel_pending_transfers");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored) as TransferItem[];
+          const restored = await Promise.all(
+            parsed.map(async (t) => {
+              if (
+                t.status === "transferring" ||
+                t.status === "paused" ||
+                t.status === "interrupted"
+              ) {
+                const file = await getFile(t.id);
+                if (file) {
+                  return { ...t, status: "paused" as const, file };
+                } else {
+                  return { ...t, status: "interrupted" as const };
+                }
+              }
+              return t;
+            }),
+          );
+          setTransfers(restored);
+          if (restored.length > 0) {
+            setShowTransfersWidget(true);
+          }
+        } catch (e) {
+          console.error("Error loading transfers from localStorage", e);
+        }
+      }
+    };
+    restoreTransfers();
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setTransfers((prev) => {
+        const failedUploads = prev.filter(
+          (t) => t.type === "upload" && t.status === "error" && t.file,
+        );
+        failedUploads.forEach((t) => {
+          if (t.file) {
+            startOrResumeUpload(t.file, t);
+          }
+        });
+        return prev;
+      });
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [transfers]);
+
+  const updateTransferProgress = (id: string, progress: number) => {
+    transfersRef.current = transfersRef.current.map((t) =>
+      t.id === id ? { ...t, progress } : t,
+    );
+    setTransfers((prev) => {
+      const updated = prev.map((t) => (t.id === id ? { ...t, progress } : t));
+      saveTransfersToLocalStorage(updated);
+      return updated;
+    });
+  };
+
+  const updateTransferProgressAndParts = (
+    id: string,
+    progress: number,
+    completedParts: { partNumber: number; eTag: string }[],
+  ) => {
+    transfersRef.current = transfersRef.current.map((t) =>
+      t.id === id ? { ...t, progress, completedParts } : t,
+    );
+    setTransfers((prev) => {
+      const updated = prev.map((t) =>
+        t.id === id ? { ...t, progress, completedParts } : t,
+      );
+      saveTransfersToLocalStorage(updated);
+      return updated;
+    });
+  };
+
+  const updateTransferStatus = (
+    id: string,
+    status: TransferItem["status"],
+    progress?: number,
+    errorMsg?: string,
+  ) => {
+    transfersRef.current = transfersRef.current.map((t) => {
+      if (t.id === id) {
+        const item = { ...t, status };
+        if (progress !== undefined) item.progress = progress;
+        if (errorMsg !== undefined) item.errorMsg = errorMsg;
+        return item;
+      }
+      return t;
+    });
+    setTransfers((prev) => {
+      const updated = prev.map((t) => {
+        if (t.id === id) {
+          const item = { ...t, status };
+          if (progress !== undefined) item.progress = progress;
+          if (errorMsg !== undefined) item.errorMsg = errorMsg;
+          return item;
+        }
+        return t;
+      });
+      saveTransfersToLocalStorage(updated);
+      return updated;
+    });
+  };
+
+  const startOrResumeUpload = async (
+    file: File,
+    existingTransfer?: TransferItem,
+  ) => {
+    let transferId = existingTransfer?.id || "";
+    let isMultipart = existingTransfer?.isMultipart ?? false;
+    let uploadUrl = existingTransfer?.uploadUrl ?? "";
+    let uploadId = existingTransfer?.uploadId ?? "";
+    let uploadUrls = existingTransfer?.uploadUrls ?? [];
+    let partSize = existingTransfer?.partSize ?? 5 * 1024 * 1024;
+    let completedParts = existingTransfer?.completedParts
+      ? [...existingTransfer.completedParts]
+      : [];
+
+    setShowTransfersWidget(true);
+
+    try {
+      if (!existingTransfer) {
+        const initiateData = await fetchClient.internal.request<{
+          document: { id: string; status: string };
+          isMultipart: boolean;
+          uploadUrl?: string;
+          uploadId?: string;
+          uploadUrls?: string[];
+          partSize: number;
+        }>("/api/documents/upload/initiate", {
+          method: "POST",
+          body: {
+            name: file.name,
+            size: file.size,
+            parentFolderId: selectedFolderId || undefined,
+            category: uploadCategory,
+          },
+        });
+
+        const docMetadata = initiateData.document;
+        transferId = docMetadata.id;
+        isMultipart = initiateData.isMultipart;
+        uploadUrl = initiateData.uploadUrl || "";
+        uploadId = initiateData.uploadId || "";
+        uploadUrls = initiateData.uploadUrls || [];
+        partSize = initiateData.partSize;
+        completedParts = [];
+
+        const newItem: TransferItem = {
+          id: transferId,
+          type: "upload",
+          name: file.name,
+          size: file.size,
+          progress: 0,
+          status: "transferring",
+          file,
+          isMultipart,
+          uploadUrl,
+          uploadId,
+          uploadUrls,
+          partSize,
+          completedParts,
+          category: uploadCategory,
+          folderId: selectedFolderId || undefined,
+        };
+
+        setTransfers((prev) => {
+          const updated = [newItem, ...prev];
+          saveTransfersToLocalStorage(updated);
+          return updated;
+        });
+      } else {
+        setTransfers((prev) => {
+          const updated = prev.map((t) =>
+            t.id === transferId
+              ? { ...t, status: "transferring" as const, file }
+              : t,
+          );
+          saveTransfersToLocalStorage(updated);
+          return updated;
+        });
+      }
+
+      await storeFile(transferId, file);
+      performUpload(
+        transferId,
+        file,
+        isMultipart,
+        uploadUrl,
+        uploadId,
+        uploadUrls,
+        partSize,
+        completedParts,
+      );
+    } catch (err) {
+      console.error("Initiate upload error:", err);
+      if (transferId) {
+        updateTransferStatus(
+          transferId,
+          "error",
+          undefined,
+          err instanceof Error ? err.message : "Erro ao iniciar upload",
+        );
+      }
+    }
+  };
+
+  const performUpload = async (
+    id: string,
+    file: File,
+    isMultipart: boolean,
+    uploadUrl: string,
+    uploadId: string,
+    uploadUrls: string[],
+    partSize: number,
+    completedParts: { partNumber: number; eTag: string }[],
+  ) => {
+    try {
+      console.log(
+        `[Upload] Iniciando upload de "${file.name}". Tamanho: ${file.size} bytes. Modo multipart: ${isMultipart}`,
+      );
+      if (!isMultipart) {
+        console.log("[Upload] Enviando arquivo em parte única...");
+        const response = await fetch(uploadUrl, {
+          method: "PUT",
+          body: file,
+        });
+
+        if (!response.ok) {
+          throw new Error("Falha ao enviar arquivo para o storage.");
+        }
+
+        console.log(
+          "[Upload] Envio finalizado no storage. Confirmando conclusão no backend...",
+        );
+        updateTransferProgress(id, 90);
+
+        await fetchClient.internal.request(`/api/documents/${id}/complete`, {
+          method: "POST",
+          body: {},
+        });
+
+        console.log("[Upload] Upload finalizado com sucesso!");
+        await deleteFile(id);
+        updateTransferStatus(id, "completed", 100);
+      } else {
+        const totalParts = uploadUrls.length;
+        console.log(
+          `[Upload] Iniciando upload multipart em ${totalParts} partes.`,
+        );
+
+        for (let i = 0; i < totalParts; i++) {
+          const partNumber = i + 1;
+          const isUploaded = completedParts.some(
+            (p) => p.partNumber === partNumber,
+          );
+          if (isUploaded) {
+            console.log(
+              `[Upload] Parte ${partNumber}/${totalParts} já carregada anteriormente. Pulando...`,
+            );
+            continue;
+          }
+
+          const currentItem = await getLatestTransferItem(id);
+          if (currentItem && currentItem.status !== "transferring") {
+            console.log(
+              `[Upload] Status mudou para ${currentItem.status}. Interrompendo upload na parte ${partNumber}.`,
+            );
+            return;
+          }
+
+          const start = i * partSize;
+          const end = Math.min(start + partSize, file.size);
+          const slice = file.slice(start, end);
+          const partUrl = uploadUrls[i];
+
+          console.log(
+            `[Upload] Enviando parte ${partNumber}/${totalParts} (${slice.size} bytes)...`,
+          );
+          const response = await fetch(partUrl, {
+            method: "PUT",
+            body: slice,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Falha no envio da parte ${partNumber}.`);
+          }
+
+          const eTag = response.headers.get("ETag");
+          if (!eTag) {
+            throw new Error(`ETag não retornada para a parte ${partNumber}.`);
+          }
+
+          const cleanETag = eTag.replace(/"/g, "");
+          const existingIndex = completedParts.findIndex(
+            (p) => p.partNumber === partNumber,
+          );
+          if (existingIndex > -1) {
+            completedParts[existingIndex].eTag = cleanETag;
+          } else {
+            completedParts.push({
+              partNumber,
+              eTag: cleanETag,
+            });
+          }
+
+          const progressPercent = Math.round(
+            (completedParts.length / totalParts) * 90,
+          );
+          console.log(
+            `[Upload] Parte ${partNumber}/${totalParts} enviada com sucesso (ETag: ${cleanETag}). Progresso: ${progressPercent}%`,
+          );
+          updateTransferProgressAndParts(id, progressPercent, completedParts);
+        }
+
+        // Ordenação ascendente por número da parte (exigência estrita do S3)
+        completedParts.sort((a, b) => a.partNumber - b.partNumber);
+
+        console.log(
+          "[Upload] Todas as partes enviadas. Solicitando finalização do multipart ao backend...",
+        );
+        await fetchClient.internal.request(`/api/documents/${id}/complete`, {
+          method: "POST",
+          body: {
+            uploadId,
+            completedParts,
+          },
+        });
+
+        console.log("[Upload] Upload multipart finalizado com sucesso!");
+        await deleteFile(id);
+        updateTransferStatus(id, "completed", 100);
+      }
+
+      await fetchTree();
+    } catch (err) {
+      console.error("[Upload] Erro durante o upload:", err);
+      updateTransferStatus(
+        id,
+        "error",
+        undefined,
+        err instanceof Error ? err.message : "Erro no envio",
+      );
+    }
+  };
+
+  const getLatestTransferItem = async (
+    id: string,
+  ): Promise<TransferItem | undefined> => {
+    return transfersRef.current.find((t) => t.id === id);
+  };
+
+  const togglePauseResume = async (id: string) => {
+    const item = await getLatestTransferItem(id);
+    if (!item) return;
+
+    if (item.status === "transferring") {
+      updateTransferStatus(id, "paused");
+    } else if (item.status === "paused") {
+      let file = item.file;
+      if (!file) {
+        file = (await getFile(id)) || undefined;
+      }
+
+      if (file) {
+        updateTransferStatus(id, "transferring");
+        performUpload(
+          id,
+          file,
+          item.isMultipart || false,
+          item.uploadUrl || "",
+          item.uploadId || "",
+          item.uploadUrls || [],
+          item.partSize || 5 * 1024 * 1024,
+          item.completedParts || [],
+        );
+      } else {
+        setResumingId(id);
+        resumeInputRef.current?.click();
+      }
+    } else if (item.status === "interrupted") {
+      const file = (await getFile(id)) || undefined;
+      if (file) {
+        updateTransferStatus(id, "transferring");
+        performUpload(
+          id,
+          file,
+          item.isMultipart || false,
+          item.uploadUrl || "",
+          item.uploadId || "",
+          item.uploadUrls || [],
+          item.partSize || 5 * 1024 * 1024,
+          item.completedParts || [],
+        );
+      } else {
+        setResumingId(id);
+        resumeInputRef.current?.click();
+      }
+    }
+  };
+
+  const cancelTransfer = async (id: string) => {
+    const item = transfers.find((t) => t.id === id);
+    if (item && item.type === "upload") {
+      try {
+        await fetchClient.internal.request(`/api/documents/${id}`, {
+          method: "DELETE",
+        });
+      } catch (e) {
+        console.error("Error deleting pending doc", e);
+      }
+    }
+    await deleteFile(id);
+    setTransfers((prev) => {
+      const updated = prev.filter((t) => t.id !== id);
+      saveTransfersToLocalStorage(updated);
+      return updated;
+    });
+  };
+
+  const startBackgroundDownload = async (node: TreeNode) => {
+    const id = `download_${node.id}_${Date.now()}`;
+    const newItem: TransferItem = {
+      id,
+      type: "download",
+      name: node.name,
+      size: 0,
+      progress: 0,
+      status: "transferring",
+      completedParts: [],
+    };
+
+    setShowTransfersWidget(true);
+    setTransfers((prev) => {
+      const updated = [newItem, ...prev];
+      saveTransfersToLocalStorage(updated);
+      return updated;
+    });
+
+    try {
+      const presignedData = await fetchClient.internal.request<{ url: string }>(
+        `/api/documents/${node.id}/presigned-url`,
+      );
+
+      const response = await fetch(presignedData.url);
+      if (!response.ok) {
+        throw new Error("Erro de resposta do storage.");
+      }
+
+      const contentLength = response.headers.get("content-length");
+      const totalSize = contentLength ? parseInt(contentLength, 10) : 0;
+
+      setTransfers((prev) => {
+        const updated = prev.map((t) =>
+          t.id === id ? { ...t, size: totalSize } : t,
+        );
+        saveTransfersToLocalStorage(updated);
+        return updated;
+      });
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("Não foi possível ler o fluxo de download.");
+      }
+
+      const chunks: Uint8Array[] = [];
+      let receivedLength = 0;
+
+      while (true) {
+        const currentItem = await getLatestTransferItem(id);
+        if (currentItem && currentItem.status === "paused") {
+          break;
+        }
+
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        chunks.push(value);
+        receivedLength += value.length;
+
+        if (totalSize > 0) {
+          const progressPercent = Math.round(
+            (receivedLength / totalSize) * 100,
+          );
+          updateTransferProgress(id, progressPercent);
+        }
+      }
+
+      const blob = new Blob(chunks as any);
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = node.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
+
+      updateTransferStatus(id, "completed", 100);
+    } catch (err) {
+      console.error("Download error:", err);
+      updateTransferStatus(
+        id,
+        "error",
+        undefined,
+        err instanceof Error ? err.message : "Erro desconhecido",
+      );
+    }
+  };
+
+  const handleResumeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && resumingId) {
+      const existing = transfers.find((t) => t.id === resumingId);
+      if (existing) {
+        startOrResumeUpload(file, existing);
+      }
+      setResumingId(null);
+    }
+  };
 
   const { categories, resolveCategory, getBadgeColor } = useCategories();
 
@@ -253,18 +910,23 @@ export default function DocumentManagement() {
   const downloadBlob = async (url: string, filename: string) => {
     try {
       setLoading(true);
-      const token = getAccessToken();
+      let downloadUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}${url}`;
       const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+
+      if (url.includes("/api/documents/download/")) {
+        const docId = url.split("/").pop();
+        const presignedData = await fetchClient.internal.request<{
+          url: string;
+        }>(`/api/documents/${docId}/presigned-url`);
+        downloadUrl = presignedData.url;
+      } else {
+        const token = getAccessToken();
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
       }
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}${url}`,
-        {
-          headers,
-        },
-      );
+      const response = await fetch(downloadUrl, { headers });
 
       if (!response.ok) {
         throw new Error("Falha ao baixar o arquivo.");
@@ -290,18 +952,11 @@ export default function DocumentManagement() {
   const handlePreviewFile = async (node: TreeNode) => {
     try {
       setLoading(true);
-      const token = getAccessToken();
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/documents/view/${node.id}`,
-        {
-          headers,
-        },
+      const presignedData = await fetchClient.internal.request<{ url: string }>(
+        `/api/documents/${node.id}/presigned-url`,
       );
+
+      const response = await fetch(presignedData.url);
 
       if (!response.ok) {
         throw new Error("Falha ao visualizar o arquivo.");
@@ -472,39 +1127,19 @@ export default function DocumentManagement() {
     e.preventDefault();
     if (!uploadFile) return;
 
-    setUploadProgress(true);
-    const fileName = uploadFile.name;
-    try {
-      const formData = new FormData();
-      formData.append("file", uploadFile);
-      if (selectedFolderId) {
-        formData.append("parentFolderId", selectedFolderId);
-      }
-      formData.append("category", uploadCategory);
+    const existing = transfers.find(
+      (t) =>
+        t.name === uploadFile.name &&
+        t.size === uploadFile.size &&
+        t.status === "interrupted",
+    );
 
-      await fetchClient.internal.request("/api/documents/upload", {
-        method: "POST",
-        body: formData,
-      });
+    closeUploadModal();
 
-      closeUploadModal();
-      await fetchTree();
-      setFeedbackModal({
-        isOpen: true,
-        type: "success",
-        title: "Upload Concluído",
-        message: `O arquivo "${fileName}" foi enviado com sucesso!`,
-      });
-    } catch (err) {
-      console.error(err);
-      setFeedbackModal({
-        isOpen: true,
-        type: "error",
-        title: "Falha no Upload",
-        message: `Ocorreu um erro ao enviar o arquivo "${fileName}". Por favor, tente novamente.`,
-      });
-    } finally {
-      setUploadProgress(false);
+    if (existing) {
+      startOrResumeUpload(uploadFile, existing);
+    } else {
+      startOrResumeUpload(uploadFile);
     }
   };
 
@@ -831,9 +1466,11 @@ export default function DocumentManagement() {
             className="border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/20 dark:bg-zinc-950/10 flex-1 min-h-[200px] overflow-hidden flex flex-col"
           >
             {loading ? (
-              <div className="flex flex-col items-center justify-center min-h-[280px] gap-2">
+              <div className="flex flex-col items-center justify-center min-h-[280px] gap-2 px-6 text-center animate-pulse">
                 <Loader2 className="w-7 h-7 text-indigo-500 animate-spin" />
-                <span className="text-xs text-zinc-400">Processando...</span>
+                <span className="text-xs text-zinc-500 font-medium transition-all duration-350">
+                  {LOADING_PHRASES[loadingPhraseIndex]}
+                </span>
               </div>
             ) : viewMode === "tree" ? (
               activeChildren.length === 0 ? (
@@ -1087,7 +1724,7 @@ export default function DocumentManagement() {
                   placeholder="Ex: Contratos, Relatórios"
                   value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-955 rounded-xl focus:outline-none focus:border-indigo-500 text-zinc-700 dark:text-zinc-300"
+                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-800 dark:text-zinc-200 transition-all font-medium"
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2">
@@ -1103,8 +1740,11 @@ export default function DocumentManagement() {
                   disabled={loading}
                   className="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
                 >
-                  {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  Criar Pasta
+                  {loading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    "Criar Pasta"
+                  )}
                 </button>
               </div>
             </form>
@@ -1373,6 +2013,7 @@ export default function DocumentManagement() {
                 onClick={(e) => {
                   e.stopPropagation();
                   handlePreviewFile(contextNode);
+                  setContextMenu(null);
                 }}
                 className="w-full text-left px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer"
               >
@@ -1382,6 +2023,7 @@ export default function DocumentManagement() {
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDownloadFile(contextNode);
+                  setContextMenu(null);
                 }}
                 className="w-full text-left px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer"
               >
@@ -1403,6 +2045,7 @@ export default function DocumentManagement() {
                 onClick={(e) => {
                   e.stopPropagation();
                   setFileToDelete(contextNode);
+                  setContextMenu(null);
                 }}
                 className="w-full text-left px-3.5 py-2 text-xs hover:bg-red-50 dark:hover:bg-red-950/20 text-red-650 dark:text-red-400 font-semibold cursor-pointer border-t border-zinc-100 dark:border-zinc-800"
               >
@@ -1415,6 +2058,7 @@ export default function DocumentManagement() {
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedFolderId(contextNode.id);
+                  setContextMenu(null);
                 }}
                 className="w-full text-left px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer"
               >
@@ -1427,6 +2071,7 @@ export default function DocumentManagement() {
                     "/api/documents/folders/download-zip/" + contextNode.id,
                     contextNode.name + ".zip",
                   );
+                  setContextMenu(null);
                 }}
                 className="w-full text-left px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer"
               >
@@ -1436,6 +2081,7 @@ export default function DocumentManagement() {
                 onClick={(e) => {
                   e.stopPropagation();
                   setFolderToDelete(contextNode);
+                  setContextMenu(null);
                 }}
                 className="w-full text-left px-3.5 py-2 text-xs hover:bg-red-50 dark:hover:bg-red-950/20 text-red-650 dark:text-red-400 font-semibold cursor-pointer border-t border-zinc-100 dark:border-zinc-800"
               >
@@ -1475,8 +2121,11 @@ export default function DocumentManagement() {
                 onClick={() => handleDeleteDocument(fileToDelete.id)}
                 className="px-4 py-2 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-xl cursor-pointer shadow-sm flex items-center gap-1.5 disabled:opacity-80"
               >
-                {isDeleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {isDeleting ? "Excluindo..." : "Excluir"}
+                {isDeleting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  "Excluir"
+                )}
               </button>
             </div>
           </div>
@@ -1640,43 +2289,48 @@ export default function DocumentManagement() {
                 <div className="h-5 w-[1px] bg-zinc-200 dark:bg-zinc-800 mx-1 hidden sm:block" />
 
                 {/* Zoom Controls */}
-                <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1">
-                  <button
-                    type="button"
-                    title="Diminuir Zoom"
-                    onClick={() =>
-                      setZoomScale((prev) => Math.max(25, prev - 25))
-                    }
-                    className="p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-lg text-zinc-550 dark:text-zinc-350 transition-all cursor-pointer"
-                  >
-                    <ZoomOut className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="text-[10px] font-bold text-zinc-650 dark:text-zinc-350 min-w-[36px] text-center">
-                    {zoomScale}%
-                  </span>
-                  <button
-                    type="button"
-                    title="Aumentar Zoom"
-                    onClick={() =>
-                      setZoomScale((prev) => Math.min(300, prev + 25))
-                    }
-                    className="p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-lg text-zinc-550 dark:text-zinc-350 transition-all cursor-pointer"
-                  >
-                    <ZoomIn className="w-3.5 h-3.5" />
-                  </button>
-                  {zoomScale !== 100 && (
-                    <button
-                      type="button"
-                      title="Resetar Zoom"
-                      onClick={() => setZoomScale(100)}
-                      className="p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-all cursor-pointer"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
+                {(previewFileName.toLowerCase().endsWith(".pdf") ||
+                  /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(previewFileName)) && (
+                  <>
+                    <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1">
+                      <button
+                        type="button"
+                        title="Diminuir Zoom"
+                        onClick={() =>
+                          setZoomScale((prev) => Math.max(25, prev - 25))
+                        }
+                        className="p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-lg text-zinc-550 dark:text-zinc-350 transition-all cursor-pointer"
+                      >
+                        <ZoomOut className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-[10px] font-bold text-zinc-650 dark:text-zinc-350 min-w-[36px] text-center">
+                        {zoomScale}%
+                      </span>
+                      <button
+                        type="button"
+                        title="Aumentar Zoom"
+                        onClick={() =>
+                          setZoomScale((prev) => Math.min(300, prev + 25))
+                        }
+                        className="p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-lg text-zinc-550 dark:text-zinc-350 transition-all cursor-pointer"
+                      >
+                        <ZoomIn className="w-3.5 h-3.5" />
+                      </button>
+                      {zoomScale !== 100 && (
+                        <button
+                          type="button"
+                          title="Resetar Zoom"
+                          onClick={() => setZoomScale(100)}
+                          className="p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-all cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
 
-                <div className="h-5 w-[1px] bg-zinc-200 dark:bg-zinc-800 mx-1 hidden sm:block" />
+                    <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800 mx-1 hidden sm:block" />
+                  </>
+                )}
 
                 {/* Download Button */}
                 <button
@@ -1703,7 +2357,7 @@ export default function DocumentManagement() {
                   <span className="hidden md:inline">Excluir</span>
                 </button>
 
-                <div className="h-5 w-[1px] bg-zinc-200 dark:bg-zinc-800 mx-1 hidden sm:block" />
+                <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800 mx-1 hidden sm:block" />
 
                 {/* Close Button */}
                 <button
@@ -1716,7 +2370,7 @@ export default function DocumentManagement() {
               </div>
             </div>
 
-            <div className="flex-1 bg-zinc-50 dark:bg-zinc-950 rounded-xl border border-zinc-100 dark:border-zinc-850 p-1.5 flex items-center justify-center overflow-auto">
+            <div className="flex-1 bg-zinc-50 dark:bg-zinc-955 rounded-xl border border-zinc-100 dark:border-zinc-850 p-1.5 flex items-center justify-center overflow-auto">
               <div
                 className="w-full h-full flex items-center justify-center transition-transform duration-200"
                 style={{
@@ -1731,20 +2385,222 @@ export default function DocumentManagement() {
                     title="PDF Preview"
                   />
                 ) : /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(previewFileName) ? (
-                  <img
+                  <Image
                     src={previewUrl}
                     alt={previewFileName}
                     className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
                   />
                 ) : (
-                  <iframe
-                    src={previewUrl}
-                    className="w-full h-full rounded-lg border-0"
-                    title="Document Preview"
-                  />
+                  <div className="flex flex-col items-center justify-center p-8 max-w-sm text-center space-y-5 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-150 dark:border-zinc-800 shadow-xl animate-in zoom-in-95 duration-200">
+                    <div className="w-14 h-14 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100/50 dark:border-indigo-900/30 flex items-center justify-center text-indigo-500 dark:text-indigo-400">
+                      {/\.(mp4|webm|ogg|mov|avi)$/i.test(previewFileName) ? (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="w-6 h-6"
+                        >
+                          <path d="m22 8-6 4 6 4V8Z" />
+                          <rect
+                            width="14"
+                            height="12"
+                            x="2"
+                            y="6"
+                            rx="2"
+                            ry="2"
+                          />
+                        </svg>
+                      ) : (
+                        <File className="w-6 h-6" />
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <h4
+                        className="text-xs font-bold text-zinc-800 dark:text-zinc-100 truncate max-w-[240px]"
+                        title={previewFileName}
+                      >
+                        {previewFileName}
+                      </h4>
+                      <p className="text-[10px] text-zinc-400 font-semibold">
+                        {/\.(mp4|webm|ogg|mov|avi)$/i.test(previewFileName)
+                          ? "Arquivo de Vídeo"
+                          : "Arquivo Binário / Outro"}
+                      </p>
+                    </div>
+                    <p className="text-[10px] text-zinc-400 px-4 leading-relaxed font-medium">
+                      Este formato de arquivo não pode ser visualizado
+                      diretamente no navegador. Baixe o arquivo para abrir em
+                      seu dispositivo.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadFile(previewFile!)}
+                      className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-xl transition-all cursor-pointer shadow-md hover:shadow-indigo-500/20 active:scale-95"
+                    >
+                      {!loading ? (
+                        <Download className="w-3.5 h-3.5" />
+                      ) : (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      )}
+                      {!loading ? "Baixar Arquivo" : ""}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* HIDDEN RESUME FILE INPUT */}
+      <input
+        type="file"
+        ref={resumeInputRef}
+        style={{ display: "none" }}
+        onChange={handleResumeFileChange}
+      />
+
+      {/* BACKGROUND TRANSFERS WIDGET */}
+      {showTransfersWidget && transfers.length > 0 && (
+        <div className="fixed bottom-4 right-4 w-80 bg-zinc-900/95 dark:bg-zinc-950/95 backdrop-blur-md border border-zinc-800/80 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col transition-all duration-200">
+          {/* Header */}
+          <div className="px-4 py-3 bg-zinc-850 dark:bg-zinc-900/50 border-b border-zinc-800/80 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <HardDrive className="w-4 h-4 text-indigo-400" />
+              <span className="text-xs font-bold text-zinc-100">
+                Transferências (
+                {transfers.filter((t) => t.status === "transferring").length})
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setTransfers([])}
+                className="text-[10px] font-bold text-zinc-400 hover:text-zinc-200 pl-2 cursor-pointer transition-colors"
+              >
+                Limpar tudo
+              </button>
+              <button
+                onClick={() => setShowTransfersWidget(false)}
+                className="p-1 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-250 transition-colors cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* List */}
+          <div className="max-h-60 overflow-y-auto p-3 space-y-3 bg-zinc-900/50 dark:bg-zinc-950/20">
+            {transfers.map((item) => (
+              <div
+                key={item.id}
+                className="space-y-1.5 border-b border-zinc-800/40 pb-2.5 last:border-b-0 last:pb-0 animate-in fade-in slide-in-from-bottom-2 duration-200"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className="text-[11px] font-semibold text-zinc-200 truncate"
+                      title={item.name}
+                    >
+                      {item.name}
+                    </p>
+                    <p className="text-[9px] text-zinc-450 font-medium">
+                      {item.type === "upload" ? "Upload" : "Download"} •{" "}
+                      {(item.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  {/* Actions based on status */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {item.status === "transferring" && (
+                      <button
+                        title="Pausar"
+                        onClick={() => togglePauseResume(item.id)}
+                        className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-100 cursor-pointer"
+                      >
+                        <Pause className="w-3 h-3" />
+                      </button>
+                    )}
+                    {(item.status === "paused" ||
+                      item.status === "interrupted") && (
+                      <button
+                        title="Retomar"
+                        onClick={() => togglePauseResume(item.id)}
+                        className="p-1 hover:bg-zinc-800 rounded text-indigo-400 hover:text-indigo-300 cursor-pointer animate-pulse"
+                      >
+                        <Play className="w-3 h-3 fill-indigo-400" />
+                      </button>
+                    )}
+                    {item.status === "error" && (
+                      <button
+                        title="Tentar Novamente"
+                        onClick={() =>
+                          item.file && startOrResumeUpload(item.file, item)
+                        }
+                        className="p-1 hover:bg-zinc-800 rounded text-amber-400 hover:text-amber-300 cursor-pointer"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                      </button>
+                    )}
+                    {item.status !== "completed" && (
+                      <button
+                        title="Cancelar"
+                        onClick={() => cancelTransfer(item.id)}
+                        className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-red-450 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress Bar & Status Text */}
+                <div className="space-y-1">
+                  <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        item.status === "completed"
+                          ? "bg-green-500"
+                          : item.status === "error"
+                            ? "bg-red-500"
+                            : item.status === "paused" ||
+                                item.status === "interrupted"
+                              ? "bg-zinc-650"
+                              : "bg-indigo-500"
+                      }`}
+                      style={{ width: `${item.progress}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[9px] font-semibold">
+                    <span
+                      className={`${
+                        item.status === "completed"
+                          ? "text-green-400"
+                          : item.status === "error"
+                            ? "text-red-450"
+                            : item.status === "paused"
+                              ? "text-zinc-400"
+                              : item.status === "interrupted"
+                                ? "text-amber-400 font-bold"
+                                : "text-zinc-400"
+                      }`}
+                    >
+                      {item.status === "transferring" &&
+                        `Transferindo... ${item.progress}%`}
+                      {item.status === "paused" && "Pausado"}
+                      {item.status === "interrupted" &&
+                        "Desconectado - clique em retomar"}
+                      {item.status === "completed" && "Concluído"}
+                      {item.status === "error" &&
+                        (item.errorMsg || "Erro na transferência")}
+                    </span>
+                    <span className="text-zinc-500">{item.progress}%</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

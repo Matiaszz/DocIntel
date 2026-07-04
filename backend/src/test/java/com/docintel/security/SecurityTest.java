@@ -1,6 +1,6 @@
 package com.docintel.security;
 
-import com.docintel.shared.config.ObjectMapperConfig;
+import com.docintel.shared.infrastructure.config.ObjectMapperConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;

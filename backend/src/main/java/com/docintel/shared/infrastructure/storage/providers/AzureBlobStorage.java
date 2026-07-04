@@ -39,4 +39,29 @@ public class AzureBlobStorage implements FileStorage {
         throw new UnsupportedOperationException("Azure Blob Storage is not implemented.");
     }
 
+    @Override
+    public String generatePresignedUploadUrl(String key) {
+        throw new UnsupportedOperationException("Azure Blob Storage is not implemented.");
+    }
+
+    @Override
+    public String initiateMultipartUpload(String key) {
+        throw new UnsupportedOperationException("Azure Blob Storage is not implemented.");
+    }
+
+    @Override
+    public String generatePresignedUploadPartUrl(String key, String uploadId, int partNumber) {
+        throw new UnsupportedOperationException("Azure Blob Storage is not implemented.");
+    }
+
+    @Override
+    public void completeMultipartUpload(String key, String uploadId, java.util.List<com.docintel.shared.infrastructure.storage.CompletedPartDTO> parts) {
+        throw new UnsupportedOperationException("Azure Blob Storage is not implemented.");
+    }
+
+    @Override
+    public String generatePresignedDownloadUrl(String key) {
+        throw new UnsupportedOperationException("Azure Blob Storage is not implemented.");
+    }
+
 }

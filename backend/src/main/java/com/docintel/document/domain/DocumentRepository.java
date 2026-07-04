@@ -11,8 +11,8 @@ import java.util.UUID;
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     @Query("SELECT DISTINCT d FROM Document d LEFT JOIN Folder f ON d.folder = f LEFT JOIN FolderPermission fp ON fp.folder = f " +
-           "WHERE d.owner.id = :userId OR f.owner.id = :userId OR fp.user.id = :userId OR f.folderVisibility = 'PUBLIC' " +
-           "OR (d.folder IS NULL AND d.owner.id = :userId)")
+           "WHERE (d.owner.id = :userId OR f.owner.id = :userId OR fp.user.id = :userId OR f.folderVisibility = 'PUBLIC' " +
+           "OR (d.folder IS NULL AND d.owner.id = :userId)) AND d.status = com.docintel.document.domain.DocumentStatus.UPLOADED")
     List<Document> findAllAccessibleDocuments(@Param("userId") UUID userId);
 
     @Query("SELECT DISTINCT d FROM Document d LEFT JOIN Folder f ON d.folder = f LEFT JOIN FolderPermission fp ON fp.folder = f " +
@@ -20,7 +20,8 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
            "AND (:search IS NULL OR LOWER(d.name) LIKE :search) " +
            "AND (:category IS NULL OR d.category = :category) " +
            "AND (:favorite IS NULL OR d.favorite = :favorite) " +
-           "AND (:tag IS NULL OR LOWER(d.tags) LIKE :tag)")
+           "AND (:tag IS NULL OR LOWER(d.tags) LIKE :tag) " +
+           "AND d.status = com.docintel.document.domain.DocumentStatus.UPLOADED")
     Page<Document> searchDocuments(
             @Param("userId") UUID userId,
             @Param("search") String search,
