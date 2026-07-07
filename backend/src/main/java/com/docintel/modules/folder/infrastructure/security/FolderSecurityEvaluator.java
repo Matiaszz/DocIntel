@@ -4,7 +4,9 @@ import com.docintel.modules.folder.domain.Folder;
 import com.docintel.modules.folder.domain.FolderPermission;
 import com.docintel.modules.folder.domain.FolderPermissionRepository;
 import com.docintel.modules.folder.domain.FolderRepository;
+import com.docintel.modules.folder.domain.enums.FolderInviteStatus;
 import com.docintel.modules.folder.domain.enums.FolderRole;
+import com.docintel.modules.folder.domain.enums.FolderVisibility;
 import com.docintel.shared.auth.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -20,7 +22,7 @@ public class FolderSecurityEvaluator {
     private final FolderRepository folderRepository;
     private final CurrentUserProvider userProvider;
 
-    public boolean hasPermission(UUID folderId, String requiredRoleName) {
+    public boolean hasPermission(UUID folderId, FolderRole requiredRole) {
         if (folderId == null) {
             return true; // Root access is checked separately or allowed
         }
@@ -30,7 +32,6 @@ public class FolderSecurityEvaluator {
             return false;
         }
 
-        FolderRole requiredRole = FolderRole.valueOf(requiredRoleName);
         return checkPermissionRecursively(folderId, userId, requiredRole);
     }
 
@@ -39,14 +40,35 @@ public class FolderSecurityEvaluator {
             return false;
         }
 
-        Optional<FolderPermission> perm = permissionRepository.findByFolderIdAndUserId(folderId, userId);
-        if (perm.isPresent()) {
-            FolderRole userRole = perm.get().getRole();
-            return hasAuthority(userRole, requiredRole);
+        Folder folder = folderRepository.findById(folderId).orElse(null);
+        if (folder == null) {
+            return false;
         }
 
-        Folder folder = folderRepository.findById(folderId).orElse(null);
-        if (folder != null && folder.getParent() != null) {
+        Optional<FolderPermission> permissionOpt = permissionRepository.findByFolderIdAndUserId(folderId, userId);
+
+        if (permissionOpt.isPresent()) {
+            FolderPermission permission = permissionOpt.get();
+
+            if (permission.getInviteStatus() == FolderInviteStatus.ACCEPTED
+                    && hasAuthority(permission.getRole(), requiredRole)) {
+                return true;
+            }
+            if (folder.getOwner().getId().equals(userId)) {
+                return hasAuthority(permission.getRole(), requiredRole);
+            }
+        }
+
+        if (folder.getOwner().getId().equals(userId)) {
+            return true;
+        }
+
+        if (folder.getFolderVisibility() == FolderVisibility.PUBLIC
+                && requiredRole == FolderRole.VIEWER) {
+            return true;
+        }
+
+        if (folder.getParent() != null) {
             return checkPermissionRecursively(folder.getParent().getId(), userId, requiredRole);
         }
 

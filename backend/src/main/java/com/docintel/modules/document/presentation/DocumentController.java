@@ -11,6 +11,8 @@ import com.docintel.modules.document.presentation.dto.response.FolderResponseDTO
 import com.docintel.modules.document.presentation.dto.response.UploadInitiateResponseDTO;
 import com.docintel.modules.folder.application.FolderService;
 import com.docintel.modules.folder.domain.Folder;
+import com.docintel.modules.folder.domain.enums.FolderRole;
+import com.docintel.modules.folder.infrastructure.security.FolderSecurityEvaluator;
 import com.docintel.shared.auth.CurrentUserProvider;
 import com.docintel.modules.user.application.UserService;
 import com.docintel.modules.user.domain.User;
@@ -21,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.util.Arrays;
@@ -38,6 +41,7 @@ public class DocumentController {
     private final FolderService folderService;
     private final UserService userService;
     private final CurrentUserProvider userProvider;
+    private final FolderSecurityEvaluator folderSecurity;
 
     /**
      * Endpoint to initiate a client-side upload.
@@ -73,6 +77,10 @@ public class DocumentController {
     public ResponseEntity<FolderResponseDTO> resolvePath(
             @RequestParam("relativePath") String relativePath,
             @RequestParam(value = "parentFolderId", required = false) UUID parentFolderId) {
+
+        if (parentFolderId != null && !folderSecurity.hasPermission(parentFolderId, FolderRole.EDITOR)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to modify this folder.");
+        }
 
         User currentUser = userProvider.getCurrentUser();
         Folder folder = folderService.resolveAndCreatePath(relativePath, parentFolderId, currentUser);
@@ -154,6 +162,10 @@ public class DocumentController {
 
     @GetMapping("/folders/download-zip/{id}")
     public ResponseEntity<StreamingResponseBody> downloadFolderZip(@PathVariable UUID id) {
+        if (id != null && !folderSecurity.hasPermission(id, FolderRole.VIEWER)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized to access this folder.");
+        }
+
         Folder folder = folderService.resolveAndCreatePath(null, id, userProvider.getCurrentUser());
         String folderName = folder != null ? folder.getName() : "Drive";
 

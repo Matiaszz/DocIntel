@@ -11,6 +11,7 @@ import com.docintel.modules.document.presentation.dto.response.FileTreeViewRespo
 import com.docintel.modules.document.presentation.dto.response.UploadInitiateResponseDTO;
 import com.docintel.modules.folder.application.FolderService;
 import com.docintel.modules.folder.domain.Folder;
+import com.docintel.modules.folder.domain.FolderPermission;
 import com.docintel.modules.folder.domain.FolderRepository;
 import com.docintel.shared.auth.CurrentUserProvider;
 import com.docintel.shared.contracts.FileStorage;
@@ -36,6 +37,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import com.docintel.modules.folder.domain.FolderPermissionRepository;
+import com.docintel.modules.folder.domain.enums.FolderRole;
+import com.docintel.modules.folder.infrastructure.security.FolderSecurityEvaluator;
 
 import static com.docintel.modules.document.mapper.DocumentMapper.mapToDocumentDTO;
 
@@ -49,6 +52,7 @@ public class DocumentService {
     private final FolderService folderService;
     private final FileStorage fileStorage;
     private final CurrentUserProvider currentUserProvider;
+    private final FolderSecurityEvaluator folderSecurity;
 
     /**
      * Initiates a client-side upload by registering the document metadata
@@ -57,6 +61,10 @@ public class DocumentService {
     @Transactional
     public UploadInitiateResponseDTO initiateUpload(UploadInitiateRequestDTO request) {
         User currentUser = currentUserProvider.getCurrentUser();
+
+        if (request.parentFolderId() != null && !folderSecurity.hasPermission(request.parentFolderId(), FolderRole.EDITOR)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to modify this folder.");
+        }
 
         // 1. Resolve and create folders dynamically from path
         Folder targetFolder = folderService.resolveAndCreatePath(
@@ -172,11 +180,22 @@ public class DocumentService {
                 .filter(d -> d.getFolder() == null || !accessibleFolders.contains(d.getFolder()))
                 .toList();
 
+        // Fetch all accepted permissions for the current user to resolve roles
+        List<FolderPermission> userPermissions = folderPermissionRepository.findByUserIdAndInviteStatus(userId, com.docintel.modules.folder.domain.enums.FolderInviteStatus.ACCEPTED);
+        Map<UUID, FolderRole> roleByFolderId = userPermissions.stream()
+                .collect(Collectors.toMap(fp -> fp.getFolder().getId(), FolderPermission::getRole, (r1, r2) -> r1));
+
         List<FileTreeViewResponseDTO> tree = new ArrayList<>();
 
         // 4. Recursively build folders
         for (Folder rootFolder : rootFolders) {
-            tree.add(buildFolderNode(rootFolder, foldersByParentId, documentsByFolderId));
+            FolderRole initialRole = FolderRole.VIEWER;
+            if (rootFolder.getOwner().getId().equals(userId)) {
+                initialRole = FolderRole.ADMIN;
+            } else if (roleByFolderId.containsKey(rootFolder.getId())) {
+                initialRole = roleByFolderId.get(rootFolder.getId());
+            }
+            tree.add(buildFolderNode(rootFolder, foldersByParentId, documentsByFolderId, roleByFolderId, userId, initialRole));
         }
 
         // 5. Add root documents
@@ -191,7 +210,9 @@ public class DocumentService {
                     rootDoc.isAnalyzed(),
                     List.of(),
                     rootDoc.isFavorite(),
-                    rootDoc.getTags()
+                    rootDoc.getTags(),
+                    rootDoc.getOwner().getId(),
+                    rootDoc.getOwner().getId().equals(userId) ? FolderRole.ADMIN : FolderRole.VIEWER
             ));
         }
 
@@ -201,14 +222,25 @@ public class DocumentService {
     private FileTreeViewResponseDTO buildFolderNode(
             Folder folder,
             Map<UUID, List<Folder>> foldersByParentId,
-            Map<UUID, List<Document>> documentsByFolderId) {
+            Map<UUID, List<Document>> documentsByFolderId,
+            Map<UUID, FolderRole> roleByFolderId,
+            UUID userId,
+            FolderRole inheritedRole) {
+
+        // Determine current folder's role
+        FolderRole computedRole = inheritedRole;
+        if (folder.getOwner().getId().equals(userId)) {
+            computedRole = FolderRole.ADMIN;
+        } else if (roleByFolderId.containsKey(folder.getId())) {
+            computedRole = roleByFolderId.get(folder.getId());
+        }
 
         List<FileTreeViewResponseDTO> children = new ArrayList<>();
 
         // Process subfolders
         List<Folder> subfolders = foldersByParentId.getOrDefault(folder.getId(), List.of());
         for (Folder sub : subfolders) {
-            children.add(buildFolderNode(sub, foldersByParentId, documentsByFolderId));
+            children.add(buildFolderNode(sub, foldersByParentId, documentsByFolderId, roleByFolderId, userId, computedRole));
         }
 
         // Process documents in this folder
@@ -224,7 +256,9 @@ public class DocumentService {
                     doc.isAnalyzed(),
                     List.of(),
                     doc.isFavorite(),
-                    doc.getTags()
+                    doc.getTags(),
+                    doc.getOwner().getId(),
+                    computedRole
             ));
         }
 
@@ -238,7 +272,9 @@ public class DocumentService {
                 false,
                 children,
                 false,
-                ""
+                "",
+                folder.getOwner().getId(),
+                computedRole
         );
     }
 
@@ -253,14 +289,9 @@ public class DocumentService {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized to access this document.");
             }
 
-            boolean hasPermission = folderRepository.findAllAccessibleFolders(currentUser.getId())
-                    .stream()
-                    .anyMatch(f -> f.getId().equals(doc.getFolder().getId()));
-
-            if (!hasPermission) {
+            if (!folderSecurity.hasPermission(doc.getFolder().getId(), FolderRole.VIEWER)) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized to access this document.");
             }
-
         }
         return doc;
     }
@@ -277,7 +308,11 @@ public class DocumentService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found."));
 
         if (!doc.getOwner().getId().equals(currentUser.getId())) {
-            if (doc.getFolder() != null && !doc.getFolder().getOwner().getId().equals(currentUser.getId())) {
+            if (doc.getFolder() == null) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized to delete this document.");
+            }
+            if (!doc.getFolder().getOwner().getId().equals(currentUser.getId())
+                    && !folderSecurity.hasPermission(doc.getFolder().getId(), FolderRole.EDITOR)) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized to delete this document.");
             }
         }
@@ -292,7 +327,8 @@ public class DocumentService {
         Folder folder = folderRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Folder not found."));
 
-        if (!folder.getOwner().getId().equals(currentUser.getId())) {
+        if (!folder.getOwner().getId().equals(currentUser.getId())
+                && !folderSecurity.hasPermission(id, FolderRole.EDITOR)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized to delete this folder.");
         }
 

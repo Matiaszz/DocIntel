@@ -12,7 +12,8 @@ public interface FolderRepository extends JpaRepository<Folder, UUID> {
     Optional<Folder> findByNameAndParentIsNull(String name);
 
     @Query("SELECT DISTINCT f FROM Folder f LEFT JOIN FolderPermission fp ON fp.folder = f " +
-           "WHERE f.owner.id = :userId OR fp.user.id = :userId OR f.folderVisibility = 'PUBLIC'")
+           "WHERE f.owner.id = :userId OR (fp.user.id = :userId AND fp.inviteStatus = FolderInviteStatus.ACCEPTED)" +
+            " OR f.folderVisibility = 'PUBLIC'")
     List<Folder> findAllAccessibleFolders(@Param("userId") UUID userId);
 
     List<Folder> findByParentId(UUID parentId);

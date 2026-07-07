@@ -16,6 +16,8 @@ import com.docintel.modules.folder.domain.FolderPermissionRepository;
 import com.docintel.modules.folder.domain.FolderRepository;
 import com.docintel.shared.auth.CurrentUserProvider;
 import com.docintel.shared.contracts.FileStorage;
+import com.docintel.modules.folder.domain.enums.FolderRole;
+import com.docintel.modules.folder.infrastructure.security.FolderSecurityEvaluator;
 import com.docintel.modules.user.domain.User;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,6 +61,9 @@ public class DocumentServiceTest {
 
     @Mock
     private CurrentUserProvider currentUserProvider;
+
+    @Mock
+    private FolderSecurityEvaluator folderSecurity;
 
     @InjectMocks
     private DocumentService documentService;
@@ -269,7 +274,7 @@ public class DocumentServiceTest {
         doc.setFolder(folder);
 
         when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
-        when(folderRepository.findAllAccessibleFolders(user.getId())).thenReturn(List.of(folder));
+        when(folderSecurity.hasPermission(folder.getId(), FolderRole.VIEWER)).thenReturn(true);
 
         // Act
         Document result = documentService.getDocument(doc.getId());
@@ -298,7 +303,7 @@ public class DocumentServiceTest {
         doc.setFolder(folder);
 
         when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
-        when(folderRepository.findAllAccessibleFolders(user.getId())).thenReturn(new ArrayList<>());
+        when(folderSecurity.hasPermission(folder.getId(), FolderRole.VIEWER)).thenReturn(false);
 
         // Act & Assert
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
@@ -408,6 +413,7 @@ public class DocumentServiceTest {
         owner.setId(UUID.randomUUID());
 
         Folder folder = new Folder();
+        folder.setId(UUID.randomUUID());
         folder.setOwner(owner);
 
         Document doc = new Document();
@@ -416,6 +422,7 @@ public class DocumentServiceTest {
         doc.setFolder(folder);
 
         when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
+        when(folderSecurity.hasPermission(folder.getId(), FolderRole.EDITOR)).thenReturn(false);
 
         // Act & Assert
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {

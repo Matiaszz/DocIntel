@@ -1,5 +1,6 @@
 package com.docintel.modules.folder.domain;
 
+import com.docintel.modules.folder.domain.enums.FolderInviteStatus;
 import com.docintel.modules.folder.domain.enums.FolderRole;
 import com.docintel.modules.user.domain.User;
 import jakarta.persistence.*;
@@ -7,10 +8,10 @@ import lombok.*;
 
 import java.util.UUID;
 
-@Getter
-@Setter
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 @Entity
 @Table(name = "folder_permissions", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"folder_id", "user_id"})
@@ -31,4 +32,9 @@ public class FolderPermission {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FolderRole role;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private FolderInviteStatus inviteStatus =  FolderInviteStatus.NOT_SENT;
 }

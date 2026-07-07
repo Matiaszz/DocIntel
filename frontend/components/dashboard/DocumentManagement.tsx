@@ -16,6 +16,7 @@ import {
   FileText,
   ArrowLeft,
   HardDrive,
+  Users,
   Download,
   Trash2,
   ZoomIn,
@@ -30,6 +31,7 @@ import {
 import { fetchClient, getAccessToken } from "../../lib/api";
 import { uploadToS3, uploadPartToS3, downloadFromS3 } from "../../lib/s3";
 import { useCategories } from "../../hooks/useCategories";
+import { useAuth } from "../../hooks/useAuth";
 import FeedbackModal from "./FeedbackModal";
 import Image from "next/image";
 
@@ -44,6 +46,8 @@ interface TreeNode {
   children: TreeNode[];
   favorite?: boolean;
   tags?: string;
+  ownerId?: string;
+  role?: "ADMIN" | "EDITOR" | "VIEWER" | null;
 }
 
 interface TransferItem {
@@ -160,6 +164,8 @@ export default function DocumentManagement() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
 
   // View states
+  const { user } = useAuth();
+  const [sidebarTab, setSidebarTab] = useState<"drive" | "shared">("drive");
   const [viewMode, setViewMode] = useState<"tree" | "categories">("tree");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("ALL");
@@ -168,6 +174,17 @@ export default function DocumentManagement() {
   // Modals / Inputs
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+
+  // Invite States
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [folderToInvite, setFolderToInvite] = useState<TreeNode | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"ADMIN" | "EDITOR" | "VIEWER">("VIEWER");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [folderPermissions, setFolderPermissions] = useState<any[]>([]);
+  const [permissionsLoading, setPermissionsLoading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadCategory, setUploadCategory] = useState("GENERAL");
@@ -830,7 +847,24 @@ export default function DocumentManagement() {
       );
 
       const blob = await downloadFromS3(presignedData.url, () => {});
-      const objectUrl = window.URL.createObjectURL(blob);
+      const ext = node.name.toLowerCase();
+      let mimeType = blob.type;
+      if (ext.endsWith(".pdf")) {
+        mimeType = "application/pdf";
+      } else if (ext.endsWith(".png")) {
+        mimeType = "image/png";
+      } else if (ext.endsWith(".jpg") || ext.endsWith(".jpeg")) {
+        mimeType = "image/jpeg";
+      } else if (ext.endsWith(".gif")) {
+        mimeType = "image/gif";
+      } else if (ext.endsWith(".webp")) {
+        mimeType = "image/webp";
+      } else if (ext.endsWith(".svg")) {
+        mimeType = "image/svg+xml";
+      }
+
+      const typedBlob = mimeType ? new Blob([blob], { type: mimeType }) : blob;
+      const objectUrl = window.URL.createObjectURL(typedBlob);
       setPreviewUrl(objectUrl);
       setPreviewFileName(node.name);
       setPreviewFile(node);
@@ -911,7 +945,7 @@ export default function DocumentManagement() {
       });
     } catch (err) {
       console.error(err);
-      setError("Falha ao excluir o documento.");
+      setError(getFriendlyErrorMessage(err, "Falha ao excluir o documento."));
     } finally {
       setIsDeleting(false);
     }
@@ -935,7 +969,7 @@ export default function DocumentManagement() {
       });
     } catch (err) {
       console.error(err);
-      setError("Falha ao excluir a pasta.");
+      setError(getFriendlyErrorMessage(err, "Falha ao excluir a pasta."));
     } finally {
       setIsDeleting(false);
     }
@@ -959,7 +993,105 @@ export default function DocumentManagement() {
 
   useEffect(() => {
     fetchTree();
+    const handleInviteAccepted = () => {
+      fetchTree();
+    };
+    window.addEventListener('folder-invite-accepted', handleInviteAccepted);
+    return () => window.removeEventListener('folder-invite-accepted', handleInviteAccepted);
   }, []);
+
+  const handleSendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!folderToInvite || !inviteEmail.trim()) return;
+
+    try {
+      setInviteLoading(true);
+      setInviteSuccess(null);
+      setInviteError(null);
+
+      await fetchClient.internal.request(`/api/folders/${folderToInvite.id}/invites`, {
+        method: "POST",
+        body: {
+          email: inviteEmail.trim(),
+          role: inviteRole,
+        },
+      });
+
+      setInviteSuccess("Convite enviado com sucesso para " + inviteEmail);
+      setInviteEmail("");
+      setTimeout(() => {
+        setShowInviteModal(false);
+        setInviteSuccess(null);
+      }, 2000);
+    } catch (err: any) {
+      console.error(err);
+      setInviteError(err.message || "Falha ao enviar convite.");
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleToggleFolderVisibility = async (node: TreeNode) => {
+    try {
+      setLoading(true);
+      await fetchClient.internal.request(`/api/folders/${node.id}/toggle-visibility`, {
+        method: "POST",
+      });
+      await fetchTree();
+    } catch (err: any) {
+      console.error(err);
+      setError(getFriendlyErrorMessage(err, "Falha ao alterar visibilidade da pasta."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchFolderPermissions = async (folderId: string) => {
+    try {
+      setPermissionsLoading(true);
+      const data = await fetchClient.internal.request<any[]>(`/api/folders/${folderId}/permissions`);
+      setFolderPermissions(data || []);
+    } catch (err) {
+      console.error("Error fetching folder permissions:", err);
+    } finally {
+      setPermissionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showInviteModal && folderToInvite) {
+      fetchFolderPermissions(folderToInvite.id);
+    } else {
+      setFolderPermissions([]);
+    }
+  }, [showInviteModal, folderToInvite]);
+
+  const handleUpdateMemberRole = async (permissionId: string, newRole: string) => {
+    if (!folderToInvite) return;
+    try {
+      await fetchClient.internal.request(`/api/folders/${folderToInvite.id}/permissions/${permissionId}`, {
+        method: "PUT",
+        body: { role: newRole },
+      });
+      await fetchFolderPermissions(folderToInvite.id);
+    } catch (err: any) {
+      console.error("Error updating member role:", err);
+      setInviteError(err.message || "Falha ao atualizar permissão do membro.");
+    }
+  };
+
+  const handleRemoveMember = async (permissionId: string) => {
+    if (!folderToInvite) return;
+    try {
+      await fetchClient.internal.request(`/api/folders/${folderToInvite.id}/permissions/${permissionId}`, {
+        method: "DELETE",
+      });
+      await fetchFolderPermissions(folderToInvite.id);
+    } catch (err: any) {
+      console.error("Error removing member:", err);
+      setInviteError(err.message || "Falha ao remover membro.");
+    }
+  };
 
   // Reset page when filters change
   useEffect(() => {
@@ -969,6 +1101,12 @@ export default function DocumentManagement() {
   const handleCreateFolder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFolderName.trim()) return;
+
+    if (currentFolderRole === "VIEWER") {
+      setError("Não é possível criar pastas porque você possui apenas permissão de visualização (Viewer) nesta pasta.");
+      setShowNewFolderModal(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -984,7 +1122,7 @@ export default function DocumentManagement() {
       await fetchTree();
     } catch (err) {
       console.error(err);
-      setError("Falha ao criar pasta.");
+      setError(getFriendlyErrorMessage(err, "Falha ao criar pasta."));
     } finally {
       setLoading(false);
     }
@@ -993,6 +1131,12 @@ export default function DocumentManagement() {
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadFile) return;
+
+    if (currentFolderRole === "VIEWER") {
+      setError("Não é possível fazer upload de arquivos porque você possui apenas permissão de visualização (Viewer) nesta pasta.");
+      setShowUploadModal(false);
+      return;
+    }
 
     const existing = transfers.find(
       (t) =>
@@ -1051,10 +1195,44 @@ export default function DocumentManagement() {
     );
   }, [filteredFiles, currentPage, itemsPerPage]);
 
+  const currentFolderRole = useMemo(() => {
+    if (!selectedFolderId) return "ADMIN";
+    const findFolder = (nodes: TreeNode[]): TreeNode | null => {
+      for (const n of nodes) {
+        if (n.id === selectedFolderId) return n;
+        const res = findFolder(n.children || []);
+        if (res) return res;
+      }
+      return null;
+    };
+    const currentFolder = findFolder(tree);
+    return currentFolder?.role || "VIEWER";
+  }, [tree, selectedFolderId]);
+
+  const getFriendlyErrorMessage = (err: any, defaultMsg: string) => {
+    const msg = (err.message || "").toLowerCase();
+    if (
+      err.status === 403 ||
+      err.status === 401 ||
+      msg.includes("403") ||
+      msg.includes("forbidden") ||
+      msg.includes("authorized") ||
+      msg.includes("permission")
+    ) {
+      return "Não é possível realizar esta ação porque você possui apenas permissão de visualização (Viewer) nesta pasta.";
+    }
+    return err.message || defaultMsg;
+  };
+
   // Finder-like active folder navigation helper
   const activeChildren = useMemo(() => {
     if (!selectedFolderId) {
-      return tree;
+      if (!user) return tree;
+      if (sidebarTab === "drive") {
+        return tree.filter((n) => n.ownerId === user.id);
+      } else {
+        return tree.filter((n) => n.ownerId !== user.id);
+      }
     }
     const findFolder = (nodes: TreeNode[]): TreeNode[] | null => {
       for (const n of nodes) {
@@ -1065,12 +1243,12 @@ export default function DocumentManagement() {
       return null;
     };
     return findFolder(tree) || [];
-  }, [tree, selectedFolderId]);
+  }, [tree, selectedFolderId, sidebarTab, user]);
 
   // Finder breadcrumbs path resolver
   const breadcrumbs = useMemo(() => {
     const path: { id: string | null; name: string }[] = [
-      { id: null, name: "Meu Drive" },
+      { id: null, name: sidebarTab === "drive" ? "Meu Drive" : "Compartilhados comigo" },
     ];
     if (!selectedFolderId) return path;
 
@@ -1093,7 +1271,7 @@ export default function DocumentManagement() {
     };
     findPath(tree, selectedFolderId, []);
     return path;
-  }, [tree, selectedFolderId]);
+  }, [tree, selectedFolderId, sidebarTab]);
 
   const handleGoUp = () => {
     if (!selectedFolderId) return;
@@ -1122,15 +1300,31 @@ export default function DocumentManagement() {
                 onClick={() => {
                   setViewMode("tree");
                   setSelectedFolderId(null);
+                  setSidebarTab("drive");
                 }}
                 className={`w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-semibold rounded-lg text-left cursor-pointer border transition-all ${
-                  viewMode === "tree" && !selectedFolderId
+                  viewMode === "tree" && !selectedFolderId && sidebarTab === "drive"
                     ? "bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/30"
                     : "border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40"
                 }`}
               >
                 <HardDrive className="w-3.5 h-3.5" />
                 Meu Drive
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode("tree");
+                  setSelectedFolderId(null);
+                  setSidebarTab("shared");
+                }}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-semibold rounded-lg text-left cursor-pointer border transition-all ${
+                  viewMode === "tree" && !selectedFolderId && sidebarTab === "shared"
+                    ? "bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/30"
+                    : "border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40"
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                Compartilhados
               </button>
               <button
                 onClick={() => {
@@ -1250,13 +1444,24 @@ export default function DocumentManagement() {
                       )}
                       <button
                         onClick={() => setSelectedFolderId(b.id)}
-                        className={`hover:text-zinc-800 dark:hover:text-zinc-250 transition-colors cursor-pointer ${
+                        className={`hover:text-zinc-800 dark:hover:text-zinc-250 transition-colors cursor-pointer flex items-center gap-1.5 ${
                           idx === breadcrumbs.length - 1
                             ? "text-zinc-800 dark:text-zinc-200 font-semibold"
                             : ""
                         }`}
                       >
-                        {b.name}
+                        <span>{b.name}</span>
+                        {idx === breadcrumbs.length - 1 && b.id !== null && (
+                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
+                            currentFolderRole === "ADMIN"
+                              ? "bg-red-50 text-red-650 dark:bg-red-950/20 dark:text-red-400"
+                              : currentFolderRole === "EDITOR"
+                                ? "bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400"
+                                : "bg-zinc-100 text-zinc-550 dark:bg-zinc-800 dark:text-zinc-400"
+                          }`}>
+                            {currentFolderRole === "ADMIN" ? "Admin" : currentFolderRole === "EDITOR" ? "Editor" : "Leitor"}
+                          </span>
+                        )}
                       </button>
                     </React.Fragment>
                   ))
@@ -1280,22 +1485,24 @@ export default function DocumentManagement() {
             </div>
 
             {/* Folder Actions */}
-            <div className="flex gap-2 shrink-0">
-              <button
-                onClick={() => setShowNewFolderModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-xl shadow-sm transition-all cursor-pointer"
-              >
-                <FolderPlus className="w-3.5 h-3.5 text-indigo-500" />
-                Nova Pasta
-              </button>
-              <button
-                onClick={() => setShowUploadModal(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-all cursor-pointer"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                Upload
-              </button>
-            </div>
+            {currentFolderRole !== "VIEWER" && (
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => setShowNewFolderModal(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-xl shadow-sm transition-all cursor-pointer"
+                >
+                  <FolderPlus className="w-3.5 h-3.5 text-indigo-500" />
+                  Nova Pasta
+                </button>
+                <button
+                  onClick={() => setShowUploadModal(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-all cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Upload
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Categories Search Box (at the top of list explorer) */}
@@ -1401,14 +1608,27 @@ export default function DocumentManagement() {
 
                           <div className="flex items-center gap-3 shrink-0">
                             {isFolder ? (
-                              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 flex items-center gap-1 font-medium">
-                                {node.visibility === "PUBLIC" ? (
-                                  <Globe className="w-3.5 h-3.5 text-emerald-500" />
-                                ) : (
-                                  <Lock className="w-3.5 h-3.5" />
+                              <div className="flex items-center gap-2">
+                                {node.role && (
+                                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider shrink-0 ${
+                                    node.role === "ADMIN"
+                                      ? "bg-red-50 text-red-650 dark:bg-red-950/20 dark:text-red-400"
+                                      : node.role === "EDITOR"
+                                        ? "bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400"
+                                        : "bg-zinc-100 text-zinc-550 dark:bg-zinc-800 dark:text-zinc-400"
+                                  }`}>
+                                    {node.role === "ADMIN" ? "Admin" : node.role === "EDITOR" ? "Editor" : "Leitor"}
+                                  </span>
                                 )}
-                                {node.children?.length || 0} itens
-                              </span>
+                                <span className="text-[10px] text-zinc-400 dark:text-zinc-500 flex items-center gap-1 font-medium">
+                                  {node.visibility === "PUBLIC" ? (
+                                    <Globe className="w-3.5 h-3.5 text-emerald-500" />
+                                  ) : (
+                                    <Lock className="w-3.5 h-3.5" />
+                                  )}
+                                  {node.children?.length || 0} itens
+                                </span>
+                              </div>
                             ) : (
                               <div className="flex items-center gap-2">
                                 {node.tags &&
@@ -1611,6 +1831,161 @@ export default function DocumentManagement() {
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : (
                     "Criar Pasta"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* FOLDER INVITATION MODAL */}
+      {showInviteModal && folderToInvite && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-full max-w-md rounded-2xl p-6 shadow-xl space-y-4 animate-in zoom-in-95 duration-150">
+            <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-1">
+              Convidar para a pasta: <span className="text-indigo-600 dark:text-indigo-400 font-semibold">{folderToInvite.name}</span>
+            </h3>
+
+            {inviteSuccess && (
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-800/40 text-emerald-650 dark:text-emerald-400 text-xs rounded-xl">
+                {inviteSuccess}
+              </div>
+            )}
+
+            {inviteError && (
+              <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 text-red-650 dark:text-red-400 text-xs rounded-xl">
+                {inviteError}
+              </div>
+            )}
+
+            <form onSubmit={handleSendInvite} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-zinc-500">
+                  E-mail do destinatário
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="exemplo@dominio.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-800 dark:text-zinc-200 transition-all font-medium"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-zinc-500">
+                  Permissão / Cargo (Role)
+                </label>
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as any)}
+                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 dark:border-zinc-850 bg-zinc-50 dark:bg-zinc-950 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-800 dark:text-zinc-200 transition-all font-semibold"
+                >
+                  <option value="VIEWER">Visualizador (Viewer)</option>
+                  <option value="EDITOR">Editor (Editor)</option>
+                  <option value="ADMIN">Administrador (Admin)</option>
+                </select>
+                <p className="text-[10px] text-zinc-400 leading-normal mt-1 space-y-1">
+                  • <strong>Admin:</strong> Pode gerenciar convites, excluir pasta e editar arquivos.<br />
+                  • <strong>Editor:</strong> Pode mexer na pasta (renomear, criar subpastas e gerenciar arquivos). Não pode convidar.<br />
+                  • <strong>Viewer:</strong> Pode apenas visualizar os conteúdos e baixar os arquivos.
+                </p>
+              </div>
+
+              {/* Members Section */}
+              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
+                <h4 className="text-xs font-bold text-zinc-900 dark:text-white">
+                  Quem tem acesso:
+                </h4>
+
+                {permissionsLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-48 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-zinc-200 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full">
+                    {folderPermissions.map((member) => (
+                      <div key={member.permissionId || 'owner-' + member.userId} className="flex items-center justify-between gap-2.5 text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-7 h-7 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 flex items-center justify-center font-bold uppercase text-[10px] shrink-0">
+                            {member.userName ? member.userName[0] : "?"}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-zinc-800 dark:text-zinc-200 truncate flex items-center gap-1.5">
+                              {member.userName}
+                              {member.inviteStatus === "PENDING" && (
+                                <span className="text-[9px] font-bold text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/20 px-1 rounded">
+                                  Pendente
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate">
+                              {member.userEmail}
+                            </p>
+                          </div>
+                        </div>
+
+                        {member.inviteStatus === "OWNER" ? (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 pr-1">
+                              Proprietário
+                            </span>
+                            <select
+                              value={member.role}
+                              onChange={(e) => handleUpdateMemberRole(member.permissionId, e.target.value)}
+                              className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1 text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 focus:outline-none focus:border-indigo-500"
+                            >
+                              <option value="VIEWER">Visualizador</option>
+                              <option value="EDITOR">Editor</option>
+                              <option value="ADMIN">Admin</option>
+                            </select>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <select
+                              value={member.role}
+                              onChange={(e) => handleUpdateMemberRole(member.permissionId, e.target.value)}
+                              className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1 text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 focus:outline-none focus:border-indigo-500"
+                            >
+                              <option value="VIEWER">Visualizador</option>
+                              <option value="EDITOR">Editor</option>
+                              <option value="ADMIN">Admin</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMember(member.permissionId)}
+                              className="p-1 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-650 hover:text-red-700 rounded-lg transition-colors cursor-pointer"
+                              title="Remover acesso"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setShowInviteModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={inviteLoading}
+                  className="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  {inviteLoading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    "Enviar Convite"
                   )}
                 </button>
               </div>
@@ -1947,6 +2322,31 @@ export default function DocumentManagement() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
+                  setFolderToInvite(contextNode);
+                  setInviteEmail("");
+                  setInviteRole("VIEWER");
+                  setShowInviteModal(true);
+                  setContextMenu(null);
+                }}
+                className="w-full text-left px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer border-t border-zinc-100 dark:border-zinc-800"
+              >
+                Convidar
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleFolderVisibility(contextNode);
+                  setContextMenu(null);
+                }}
+                className="w-full text-left px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer border-t border-zinc-100 dark:border-zinc-800"
+              >
+                {contextNode.visibility === "PUBLIC"
+                  ? "Tornar Privada"
+                  : "Tornar Pública"}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
                   setFolderToDelete(contextNode);
                   setContextMenu(null);
                 }}
@@ -2252,7 +2652,7 @@ export default function DocumentManagement() {
                     title="PDF Preview"
                   />
                 ) : /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(previewFileName) ? (
-                  <Image
+                  <img
                     src={previewUrl}
                     alt={previewFileName}
                     className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
@@ -2345,13 +2745,20 @@ export default function DocumentManagement() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setTransfers([])}
+                onClick={() => {
+                  setTransfers([]);
+                  saveTransfersToLocalStorage([]);
+                }}
                 className="text-[10px] font-bold text-zinc-400 hover:text-zinc-200 pl-2 cursor-pointer transition-colors"
               >
                 Limpar tudo
               </button>
               <button
-                onClick={() => setShowTransfersWidget(false)}
+                onClick={() => {
+                  setTransfers([]);
+                  saveTransfersToLocalStorage([]);
+                  setShowTransfersWidget(false);
+                }}
                 className="p-1 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-250 transition-colors cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
