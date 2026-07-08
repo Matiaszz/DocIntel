@@ -534,37 +534,37 @@ public class FolderServiceTest {
     }
 
     @Test
-    void shouldGetFolderPermissionsSuccessfully() {
+    void shouldLoadFolderPermissionsSuccessfully() {
         // Arrange
         UUID folderId = UUID.randomUUID();
         Folder folder = new Folder();
         folder.setId(folderId);
 
         when(folderRepository.findById(folderId)).thenReturn(Optional.of(folder));
-        when(folderSecurity.hasPermission(folderId, FolderRole.ADMIN)).thenReturn(true);
+        when(folderSecurity.hasPermission(folderId, FolderRole.VIEWER)).thenReturn(true);
         List<FolderPermission> expected = List.of(new FolderPermission());
         when(permissionRepository.findByFolderId(folderId)).thenReturn(expected);
 
         // Act
-        List<FolderPermission> result = folderService.getFolderPermissions(folderId);
+        List<FolderPermission> result = folderService.loadFolderPermissions(folderId).permissions();
 
         // Assert
         assertEquals(expected, result);
     }
 
     @Test
-    void shouldFailToGetFolderPermissionsWhenNotAdmin() {
+    void shouldFailToLoadFolderPermissionsWhenNotAdmin() {
         // Arrange
         UUID folderId = UUID.randomUUID();
         Folder folder = new Folder();
         folder.setId(folderId);
 
         when(folderRepository.findById(folderId)).thenReturn(Optional.of(folder));
-        when(folderSecurity.hasPermission(folderId, FolderRole.ADMIN)).thenReturn(false);
+        when(folderSecurity.hasPermission(folderId, FolderRole.VIEWER)).thenReturn(false);
 
         // Act & Assert
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
-            folderService.getFolderPermissions(folderId);
+            folderService.loadFolderPermissions(folderId);
         });
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
         assertEquals("Only folder ADMINs can view permissions", ex.getReason());
@@ -575,8 +575,46 @@ public class FolderServiceTest {
         // Arrange
         UUID folderId = UUID.randomUUID();
         UUID permissionId = UUID.randomUUID();
+        
+        User owner = new User();
+        owner.setId(UUID.randomUUID());
+        
         Folder folder = new Folder();
         folder.setId(folderId);
+        folder.setOwner(owner);
+
+        FolderPermission permission = new FolderPermission();
+        permission.setId(permissionId);
+        permission.setFolder(folder);
+        permission.setRole(FolderRole.VIEWER);
+
+        UUID currentUserId = UUID.randomUUID(); // different from owner.getId()
+
+        when(permissionRepository.findById(permissionId)).thenReturn(Optional.of(permission));
+        when(folderSecurity.hasPermission(folderId, FolderRole.ADMIN)).thenReturn(true);
+        when(userProvider.getCurrentUserId()).thenReturn(currentUserId);
+
+        // Act
+        folderService.updateFolderPermission(folderId, permissionId, FolderRole.EDITOR);
+
+        // Assert
+        assertEquals(FolderRole.EDITOR, permission.getRole());
+        verify(permissionRepository).save(permission);
+    }
+
+    @Test
+    void shouldFailToUpdateFolderPermissionWhenUserIsOwner() {
+        // Arrange
+        UUID folderId = UUID.randomUUID();
+        UUID permissionId = UUID.randomUUID();
+        
+        User owner = new User();
+        UUID ownerId = UUID.randomUUID();
+        owner.setId(ownerId);
+        
+        Folder folder = new Folder();
+        folder.setId(folderId);
+        folder.setOwner(owner);
 
         FolderPermission permission = new FolderPermission();
         permission.setId(permissionId);
@@ -585,13 +623,14 @@ public class FolderServiceTest {
 
         when(permissionRepository.findById(permissionId)).thenReturn(Optional.of(permission));
         when(folderSecurity.hasPermission(folderId, FolderRole.ADMIN)).thenReturn(true);
+        when(userProvider.getCurrentUserId()).thenReturn(ownerId); // Same as ownerId
 
-        // Act
-        folderService.updateFolderPermission(folderId, permissionId, FolderRole.EDITOR);
-
-        // Assert
-        assertEquals(FolderRole.EDITOR, permission.getRole());
-        verify(permissionRepository).save(permission);
+        // Act & Assert
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            folderService.updateFolderPermission(folderId, permissionId, FolderRole.EDITOR);
+        });
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals("Owner's role cannot be changed", ex.getReason());
     }
 
     @Test

@@ -7,13 +7,15 @@ import com.docintel.modules.folder.domain.Folder;
 import com.docintel.modules.folder.domain.FolderPermission;
 import com.docintel.modules.folder.domain.FolderPermissionRepository;
 import com.docintel.modules.folder.domain.FolderRepository;
+import com.docintel.modules.folder.presentation.dto.response.FolderPermissionResponseDTO;
+import com.docintel.modules.folder.presentation.dto.response.results.FolderPermissionResult;
 import com.docintel.modules.user.domain.User;
 import com.docintel.modules.user.domain.UserRepository;
 import com.docintel.shared.contracts.EmailSender;
-import jakarta.validation.constraints.Email;
 import lombok.RequiredArgsConstructor;
 import com.docintel.modules.folder.infrastructure.security.FolderSecurityEvaluator;
 import com.docintel.shared.auth.CurrentUserProvider;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -21,9 +23,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.HtmlUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
+import static com.docintel.modules.folder.domain.enums.FolderInviteStatus.ACCEPTED;
+import static com.docintel.modules.folder.domain.enums.FolderRole.ADMIN;
 
 @Service
 @RequiredArgsConstructor
@@ -227,15 +233,17 @@ public class FolderService {
     }
 
     @Transactional(readOnly = true)
-    public List<FolderPermission> getFolderPermissions(UUID folderId) {
+    public FolderPermissionResult loadFolderPermissions(UUID folderId) {
         Folder folder = folderRepository.findById(folderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Folder not found"));
 
-        if (!folderSecurity.hasPermission(folderId, FolderRole.ADMIN)) {
+        if (!folderSecurity.hasPermission(folderId, FolderRole.VIEWER)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only folder ADMINs can view permissions");
         }
 
-        return permissionRepository.findByFolderId(folderId);
+        List<FolderPermission> permissions = permissionRepository.findByFolderId(folderId);
+
+        return new FolderPermissionResult(folder, permissions);
     }
 
     @Transactional
@@ -243,12 +251,21 @@ public class FolderService {
         FolderPermission permission = permissionRepository.findById(permissionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Permission not found"));
 
-        if (!permission.getFolder().getId().equals(folderId)) {
+        Folder folder = permission.getFolder();
+
+        if (!folder.getId().equals(folderId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Permission does not belong to this folder");
         }
 
         if (!folderSecurity.hasPermission(folderId, FolderRole.ADMIN)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only folder ADMINs can manage permissions");
+        }
+
+        UUID currentUserId = userProvider.getCurrentUserId();
+        UUID folderOwnerId = folder.getOwner().getId();
+
+        if (folderOwnerId.equals(currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Owner's role cannot be changed");
         }
 
         permission.setRole(newRole);
@@ -271,5 +288,55 @@ public class FolderService {
         permissionRepository.delete(permission);
     }
 
+    @Transactional
+    public @NonNull List<FolderPermissionResponseDTO> getFolderPermission(UUID id) {
+        FolderPermissionResult result = loadFolderPermissions(id);
+        Folder folder = result.folder();
+        List<FolderPermission> permissions = result.permissions();
+
+        FolderPermission ownerPermission = permissions.stream()
+                .filter(fp -> fp.getUser().getId().equals(folder.getOwner().getId()))
+                .findFirst()
+                .orElse(null);
+
+        if (ownerPermission == null) {
+            ownerPermission = new FolderPermission();
+            ownerPermission.setFolder(folder);
+            ownerPermission.setUser(folder.getOwner());
+            ownerPermission.setRole(ADMIN);
+            ownerPermission.setInviteStatus(ACCEPTED);
+            ownerPermission = permissionRepository.save(ownerPermission);
+        }
+
+        return getFolderPermissionResponseDTOS(folder, permissions, ownerPermission);
+    }
+
+    private static @NonNull List<FolderPermissionResponseDTO> getFolderPermissionResponseDTOS(Folder folder, List<FolderPermission> permissions, FolderPermission ownerPermission) {
+        List<FolderPermissionResponseDTO> list = new ArrayList<>();
+        list.add(new FolderPermissionResponseDTO(
+                ownerPermission.getId(),
+                folder.getOwner().getId(),
+                folder.getOwner().getFirstName() + " " + folder.getOwner().getLastName(),
+                folder.getOwner().getEmail(),
+                ownerPermission.getRole(),
+                "OWNER"
+        ));
+
+        for (FolderPermission fp : permissions) {
+            if (fp.getUser().getId().equals(folder.getOwner().getId())) {
+                continue;
+            }
+
+            list.add(new FolderPermissionResponseDTO(
+                    fp.getId(),
+                    fp.getUser().getId(),
+                    fp.getUser().getFirstName() + " " + fp.getUser().getLastName(),
+                    fp.getUser().getEmail(),
+                    fp.getRole(),
+                    fp.getInviteStatus().name()
+            ));
+        }
+        return list;
+    }
 
 }

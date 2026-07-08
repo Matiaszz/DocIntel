@@ -185,6 +185,12 @@ export default function DocumentManagement() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [folderPermissions, setFolderPermissions] = useState<any[]>([]);
   const [permissionsLoading, setPermissionsLoading] = useState(false);
+
+  const isCurrentUserAdmin = !!(user && folderToInvite && (
+    folderToInvite.ownerId === user.id ||
+    folderPermissions.some(member => member.userId === user.id && member.role === "ADMIN")
+  ));
+
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadCategory, setUploadCategory] = useState("GENERAL");
@@ -1860,39 +1866,43 @@ export default function DocumentManagement() {
             )}
 
             <form onSubmit={handleSendInvite} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-zinc-500">
-                  E-mail do destinatário
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder="exemplo@dominio.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-800 dark:text-zinc-200 transition-all font-medium"
-                />
-              </div>
+              {isCurrentUserAdmin && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-zinc-500">
+                      E-mail do destinatário
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="exemplo@dominio.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      className="w-full px-3.5 py-2 text-sm border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-800 dark:text-zinc-200 transition-all font-medium"
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-zinc-500">
-                  Permissão / Cargo (Role)
-                </label>
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as any)}
-                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 dark:border-zinc-850 bg-zinc-50 dark:bg-zinc-950 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-800 dark:text-zinc-200 transition-all font-semibold"
-                >
-                  <option value="VIEWER">Visualizador (Viewer)</option>
-                  <option value="EDITOR">Editor (Editor)</option>
-                  <option value="ADMIN">Administrador (Admin)</option>
-                </select>
-                <p className="text-[10px] text-zinc-400 leading-normal mt-1 space-y-1">
-                  • <strong>Admin:</strong> Pode gerenciar convites, excluir pasta e editar arquivos.<br />
-                  • <strong>Editor:</strong> Pode mexer na pasta (renomear, criar subpastas e gerenciar arquivos). Não pode convidar.<br />
-                  • <strong>Viewer:</strong> Pode apenas visualizar os conteúdos e baixar os arquivos.
-                </p>
-              </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-zinc-500">
+                      Permissão / Cargo (Role)
+                    </label>
+                    <select
+                      value={inviteRole}
+                      onChange={(e) => setInviteRole(e.target.value as any)}
+                      className="w-full px-3.5 py-2 text-sm border border-zinc-200 dark:border-zinc-850 bg-zinc-50 dark:bg-zinc-950 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-800 dark:text-zinc-200 transition-all font-semibold"
+                    >
+                      <option value="VIEWER">Visualizador (Viewer)</option>
+                      <option value="EDITOR">Editor (Editor)</option>
+                      <option value="ADMIN">Administrador (Admin)</option>
+                    </select>
+                    <p className="text-[10px] text-zinc-400 leading-normal mt-1 space-y-1">
+                      • <strong>Admin:</strong> Pode gerenciar convites, excluir pasta e editar arquivos.<br />
+                      • <strong>Editor:</strong> Pode mexer na pasta (renomear, criar subpastas e gerenciar arquivos). Não pode convidar.<br />
+                      • <strong>Viewer:</strong> Pode apenas visualizar os conteúdos e baixar os arquivos.
+                    </p>
+                  </div>
+                </>
+              )}
 
               {/* Members Section */}
               <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
@@ -1932,35 +1942,38 @@ export default function DocumentManagement() {
                             <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 pr-1">
                               Proprietário
                             </span>
-                            <select
-                              value={member.role}
-                              onChange={(e) => handleUpdateMemberRole(member.permissionId, e.target.value)}
-                              className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1 text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 focus:outline-none focus:border-indigo-500"
-                            >
-                              <option value="VIEWER">Visualizador</option>
-                              <option value="EDITOR">Editor</option>
-                              <option value="ADMIN">Admin</option>
-                            </select>
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <select
-                              value={member.role}
-                              onChange={(e) => handleUpdateMemberRole(member.permissionId, e.target.value)}
-                              className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1 text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 focus:outline-none focus:border-indigo-500"
-                            >
-                              <option value="VIEWER">Visualizador</option>
-                              <option value="EDITOR">Editor</option>
-                              <option value="ADMIN">Admin</option>
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveMember(member.permissionId)}
-                              className="p-1 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-650 hover:text-red-700 rounded-lg transition-colors cursor-pointer"
-                              title="Remover acesso"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {isCurrentUserAdmin ? (
+                              <>
+                                <select
+                                  value={member.role}
+                                  onChange={(e) => handleUpdateMemberRole(member.permissionId, e.target.value)}
+                                  className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1 text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 focus:outline-none focus:border-indigo-500"
+                                >
+                                  <option value="VIEWER">Visualizador</option>
+                                  <option value="EDITOR">Editor</option>
+                                  <option value="ADMIN">Admin</option>
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveMember(member.permissionId)}
+                                  className="p-1 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-650 hover:text-red-700 rounded-lg transition-colors cursor-pointer"
+                                  title="Remover acesso"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1 text-[10px] font-semibold text-zinc-700 dark:text-zinc-300">
+                                {member.role === "ADMIN"
+                                  ? "Admin"
+                                  : member.role === "EDITOR"
+                                    ? "Editor"
+                                    : "Visualizador"}
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1975,19 +1988,21 @@ export default function DocumentManagement() {
                   onClick={() => setShowInviteModal(false)}
                   className="px-4 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer"
                 >
-                  Cancelar
+                  {isCurrentUserAdmin ? "Cancelar" : "Fechar"}
                 </button>
-                <button
-                  type="submit"
-                  disabled={inviteLoading}
-                  className="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
-                >
-                  {inviteLoading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    "Enviar Convite"
-                  )}
-                </button>
+                {isCurrentUserAdmin && (
+                  <button
+                    type="submit"
+                    disabled={inviteLoading}
+                    className="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    {inviteLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      "Enviar Convite"
+                    )}
+                  </button>
+                )}
               </div>
             </form>
           </div>

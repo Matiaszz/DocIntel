@@ -81,4 +81,6 @@ public class FolderSecurityEvaluator {
         if (userRole == FolderRole.VIEWER) return requiredRole == FolderRole.VIEWER;
         return false;
     }
+
+
 }
