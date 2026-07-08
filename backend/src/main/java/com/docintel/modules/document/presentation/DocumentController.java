@@ -14,7 +14,6 @@ import com.docintel.modules.folder.domain.Folder;
 import com.docintel.modules.folder.domain.enums.FolderRole;
 import com.docintel.modules.folder.infrastructure.security.FolderSecurityEvaluator;
 import com.docintel.shared.auth.CurrentUserProvider;
-import com.docintel.modules.user.application.UserService;
 import com.docintel.modules.user.domain.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +39,6 @@ public class DocumentController {
 
     private final DocumentService documentService;
     private final FolderService folderService;
-    private final UserService userService;
     private final CurrentUserProvider userProvider;
     private final FolderSecurityEvaluator folderSecurity;
 
@@ -79,11 +78,11 @@ public class DocumentController {
             @RequestParam(value = "parentFolderId", required = false) UUID parentFolderId) {
 
         if (parentFolderId != null && !folderSecurity.hasPermission(parentFolderId, FolderRole.EDITOR)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to modify this folder.");
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "You do not have permission to modify this folder.");
         }
 
-        User currentUser = userProvider.getCurrentUser();
-        Folder folder = folderService.resolveAndCreatePath(relativePath, parentFolderId, currentUser);
+        Folder folder = folderService.resolveAndCreatePath(relativePath, parentFolderId);
 
         return ResponseEntity.ok(new FolderResponseDTO(
                 folder != null ? folder.getId() : null,
@@ -135,7 +134,7 @@ public class DocumentController {
         Document doc = documentService.getDocument(id);
         String presignedUrl = documentService.generatePresignedDownloadUrl(doc);
         return ResponseEntity.status(HttpStatus.FOUND)
-                .location(java.net.URI.create(presignedUrl))
+                .location(URI.create(presignedUrl))
                 .build();
     }
 
@@ -144,7 +143,7 @@ public class DocumentController {
         Document doc = documentService.getDocument(id);
         String presignedUrl = documentService.generatePresignedDownloadUrl(doc);
         return ResponseEntity.status(HttpStatus.FOUND)
-                .location(java.net.URI.create(presignedUrl))
+                .location(URI.create(presignedUrl))
                 .build();
     }
 
@@ -163,10 +162,11 @@ public class DocumentController {
     @GetMapping("/folders/download-zip/{id}")
     public ResponseEntity<StreamingResponseBody> downloadFolderZip(@PathVariable UUID id) {
         if (id != null && !folderSecurity.hasPermission(id, FolderRole.VIEWER)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized to access this folder.");
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Not authorized to access this folder.");
         }
 
-        Folder folder = folderService.resolveAndCreatePath(null, id, userProvider.getCurrentUser());
+        Folder folder = folderService.resolveAndCreatePath(null, id);
         String folderName = folder != null ? folder.getName() : "Drive";
 
         StreamingResponseBody responseBody = outputStream -> {
@@ -230,9 +230,16 @@ public class DocumentController {
     @PutMapping("/{id}/tags")
     public ResponseEntity<DocumentResponseDTO> updateTags(@PathVariable UUID id, @RequestBody String tags) {
         String cleanTags = tags;
-        if (tags != null && (tags.startsWith("\"") && tags.endsWith("\"") || tags.startsWith("'") && tags.endsWith("'"))) {
+
+        boolean areBetweenQuotes = tags != null && (
+                tags.startsWith("\"") && tags.endsWith("\"")
+                || tags.startsWith("'") && tags.endsWith("'")
+        );
+
+        if (areBetweenQuotes) {
             cleanTags = tags.substring(1, tags.length() - 1);
         }
+
         Document document = documentService.updateTags(id, cleanTags);
         return ResponseEntity.ok(new DocumentResponseDTO(
                 document.getId(),

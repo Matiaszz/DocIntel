@@ -82,7 +82,7 @@ public class DocumentServiceTest {
         );
 
         when(currentUserProvider.getCurrentUser()).thenReturn(user);
-        when(folderService.resolveAndCreatePath("finance/", null, user)).thenReturn(folder);
+        when(folderService.resolveAndCreatePath("finance/", null)).thenReturn(folder);
         when(fileStorage.resolveFileKey(any(UUID.class), eq("test.pdf"))).thenReturn("resolved-s3-key");
         when(fileStorage.generatePresignedUploadUrl("resolved-s3-key")).thenReturn("presigned-put-url");
 
@@ -122,7 +122,7 @@ public class DocumentServiceTest {
         );
 
         when(currentUserProvider.getCurrentUser()).thenReturn(user);
-        when(folderService.resolveAndCreatePath("archive/", null, user)).thenReturn(folder);
+        when(folderService.resolveAndCreatePath("archive/", null)).thenReturn(folder);
         when(fileStorage.resolveFileKey(any(UUID.class), eq("large.zip"))).thenReturn("large-s3-key");
         when(fileStorage.initiateMultipartUpload("large-s3-key")).thenReturn("upload-id-123");
         when(fileStorage.generatePresignedUploadPartUrl(eq("large-s3-key"), eq("upload-id-123"), anyInt()))

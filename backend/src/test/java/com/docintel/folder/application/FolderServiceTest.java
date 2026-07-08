@@ -55,7 +55,7 @@ public class FolderServiceTest {
     @Test
     void shouldReturnNullWhenRelativePathAndParentFolderIdAreNull() {
         // Act
-        Folder result = folderService.resolveAndCreatePath(null, null, new User());
+        Folder result = folderService.resolveAndCreatePath(null, null);
 
         // Assert
         assertNull(result);
@@ -73,7 +73,7 @@ public class FolderServiceTest {
         when(folderRepository.findById(parentId)).thenReturn(Optional.of(parentFolder));
 
         // Act
-        Folder result = folderService.resolveAndCreatePath(" ", parentId, new User());
+        Folder result = folderService.resolveAndCreatePath(" ", parentId);
 
         // Assert
         assertNotNull(result);
@@ -91,7 +91,7 @@ public class FolderServiceTest {
 
         // Act & Assert
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-            folderService.resolveAndCreatePath("", parentId, new User());
+            folderService.resolveAndCreatePath("", parentId);
         });
 
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
@@ -118,7 +118,7 @@ public class FolderServiceTest {
         when(folderRepository.findByNameAndParent("invoices", rootFolder)).thenReturn(Optional.of(subFolder));
 
         // Act
-        Folder result = folderService.resolveAndCreatePath("finance/invoices/", null, user);
+        Folder result = folderService.resolveAndCreatePath("finance/invoices/", null);
 
         // Assert
         assertNotNull(result);
@@ -134,6 +134,7 @@ public class FolderServiceTest {
         // Arrange
         User user = new User();
         user.setId(UUID.randomUUID());
+        when(userProvider.getCurrentUser()).thenReturn(user);
 
         when(folderRepository.findByNameAndParentIsNull("finance")).thenReturn(Optional.empty());
 
@@ -145,7 +146,7 @@ public class FolderServiceTest {
         when(folderRepository.save(any(Folder.class))).thenReturn(savedRootFolder);
 
         // Act
-        Folder result = folderService.resolveAndCreatePath("finance/", null, user);
+        Folder result = folderService.resolveAndCreatePath("finance/", null);
 
         // Assert
         assertNotNull(result);
@@ -176,14 +177,14 @@ public class FolderServiceTest {
 
         // Act & Assert for ".."
         ResponseStatusException exception1 = assertThrows(ResponseStatusException.class, () -> {
-            folderService.resolveAndCreatePath("finance/../invoices", null, user);
+            folderService.resolveAndCreatePath("finance/../invoices", null);
         });
         assertEquals(HttpStatus.BAD_REQUEST, exception1.getStatusCode());
         assertEquals("Invalid path segment.", exception1.getReason());
 
         // Act & Assert for "."
         ResponseStatusException exception2 = assertThrows(ResponseStatusException.class, () -> {
-            folderService.resolveAndCreatePath("finance/./invoices", null, user);
+            folderService.resolveAndCreatePath("finance/./invoices", null);
         });
         assertEquals(HttpStatus.BAD_REQUEST, exception2.getStatusCode());
         assertEquals("Invalid path segment.", exception2.getReason());

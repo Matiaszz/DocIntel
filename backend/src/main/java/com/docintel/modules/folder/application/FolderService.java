@@ -51,7 +51,7 @@ public class FolderService {
      * is granted the ADMIN role by default.
      */
     @Transactional
-    public Folder resolveAndCreatePath(String relativePath, UUID parentFolderId, User currentUser) {
+    public Folder resolveAndCreatePath(String relativePath, UUID parentFolderId) {
         if (relativePath == null || relativePath.trim().isEmpty()) {
             if (parentFolderId == null) {
                 return null; // Root
@@ -71,6 +71,7 @@ public class FolderService {
         }
 
         int folderCount = isFile ? parts.length - 1 : parts.length;
+        User currentUser = userProvider.getCurrentUser();
 
         for (int i = 0; i < folderCount; i++) {
             String folderName = HtmlUtils.htmlEscape(parts[i]);

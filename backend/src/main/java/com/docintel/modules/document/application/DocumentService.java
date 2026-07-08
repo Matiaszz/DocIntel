@@ -69,8 +69,7 @@ public class DocumentService {
         // 1. Resolve and create folders dynamically from path
         Folder targetFolder = folderService.resolveAndCreatePath(
                 request.relativePath(),
-                request.parentFolderId(),
-                currentUser);
+                request.parentFolderId());
 
         String fileName = request.name();
         if (fileName == null || fileName.trim().isEmpty()) {
