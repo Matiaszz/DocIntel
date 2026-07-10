@@ -7,9 +7,11 @@ import com.docintel.modules.folder.presentation.dto.request.UpdatePermissionRequ
 import com.docintel.modules.folder.presentation.dto.response.FolderPermissionResponseDTO;
 import com.docintel.modules.folder.presentation.dto.response.PendingInviteResponseDTO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -47,13 +49,14 @@ public class FolderController {
     }
 
     @PostMapping("/invites/{inviteId}/accept")
-    public ResponseEntity<Map<String, String>> acceptInvite(@PathVariable UUID inviteId) {
+    public ResponseEntity<Void> acceptInvite(@PathVariable UUID inviteId) {
         folderService.acceptFolderInvite(inviteId);
-        return ResponseEntity.noContent().build();
+
+        return ResponseEntity.noContent().build(); // 204
     }
 
     @PostMapping("/invites/{inviteId}/reject")
-    public ResponseEntity<Map<String, String>> rejectInvite(@PathVariable UUID inviteId) {
+    public ResponseEntity<Void> rejectInvite(@PathVariable UUID inviteId) {
         folderService.rejectFolderInvite(inviteId);
         return ResponseEntity.noContent().build();
     }
@@ -71,7 +74,7 @@ public class FolderController {
     }
 
     @PutMapping("/{id}/permissions/{permissionId}")
-    public ResponseEntity<Map<String, String>> updatePermission(
+    public ResponseEntity<Void> updatePermission(
             @PathVariable UUID id,
             @PathVariable UUID permissionId,
             @RequestBody UpdatePermissionRequestDTO request
@@ -81,7 +84,7 @@ public class FolderController {
     }
 
     @DeleteMapping("/{id}/permissions/{permissionId}")
-    public ResponseEntity<Map<String, String>> deletePermission(
+    public ResponseEntity<Void> deletePermission(
             @PathVariable UUID id,
             @PathVariable UUID permissionId
     ) {

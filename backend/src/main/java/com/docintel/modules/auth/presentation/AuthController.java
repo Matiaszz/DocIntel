@@ -9,6 +9,7 @@ import com.docintel.modules.auth.presentation.dto.request.RegisterRequest;
 import com.docintel.modules.auth.presentation.dto.request.ResetPasswordRequest;
 import com.docintel.modules.auth.presentation.dto.response.LoginResponse;
 import com.docintel.modules.auth.presentation.dto.response.TokenResponse;
+import com.docintel.modules.user.domain.User;
 import com.docintel.modules.user.presentation.dto.response.UserResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,8 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
         log.info("Registering user: {}", request.email());
-        UserResponse response = authService.register(request);
+        User user = authService.register(request);
+        UserResponse response = UserResponse.from(user);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

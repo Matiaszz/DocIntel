@@ -302,6 +302,7 @@ public class DocumentServiceTest {
         doc.setOwner(owner);
         doc.setFolder(folder);
 
+        assert doc.getId() != null;
         when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
         when(folderSecurity.hasPermission(folder.getId(), FolderRole.VIEWER)).thenReturn(false);
 

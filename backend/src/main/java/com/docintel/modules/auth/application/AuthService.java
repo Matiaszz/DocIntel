@@ -49,7 +49,7 @@ public class AuthService {
     private String frontendUrl;
 
     @Transactional
-    public UserResponse register(RegisterRequest request) {
+    public User register(RegisterRequest request) {
         if (userRepository.findByEmail(request.email()).isPresent()) {
             throw new EmailAlreadyInUseException("Email already in use");
         }
@@ -65,7 +65,7 @@ public class AuthService {
 
         sendVerificationEmail(savedUser);
 
-        return mapToUserResponse(savedUser);
+        return savedUser;
     }
 
     @Transactional

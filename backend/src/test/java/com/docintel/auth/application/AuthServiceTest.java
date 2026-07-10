@@ -85,7 +85,8 @@ class AuthServiceTest {
         });
 
         // Act
-        UserResponse response = authService.register(validRequest);
+        User user = authService.register(validRequest);
+        UserResponse response = UserResponse.from(user);
 
         // Assert
         assertNotNull(response);

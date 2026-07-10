@@ -66,6 +66,7 @@ public class JwtService {
             if (expirationTime == null || new Date().after(expirationTime)) {
                 throw new JwtExpiredException("JWT token is expired");
             }
+
         } catch (ParseException e) {
             throw new JwtInvalidException("Invalid JWT token format", e);
         } catch (JOSEException e) {
