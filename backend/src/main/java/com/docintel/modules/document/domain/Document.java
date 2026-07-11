@@ -12,7 +12,6 @@ import org.springframework.data.domain.Persistable;
 import java.util.UUID;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 @Entity
 @Table(name = "documents")
@@ -65,4 +64,43 @@ public class Document implements Persistable<UUID> {
     void markNotNew() {
         this.isNew = false;
     }
+
+    public static Document create(
+            String fileName,
+            String s3Key,
+            Folder folder,
+            User owner,
+            DocumentCategory category
+    ) {
+        if (fileName == null || fileName.isBlank()) {
+            throw new IllegalArgumentException("Document name cannot be empty");
+        }
+
+        if (s3Key == null || s3Key.isBlank()) {
+            throw new IllegalArgumentException("S3 key cannot be empty");
+        }
+
+        if (owner == null) {
+            throw new IllegalArgumentException("Document must have an owner");
+        }
+
+        return new Document(
+                UUID.randomUUID(),
+                fileName,
+                s3Key,
+                folder,
+                owner,
+                category != null ? category : DocumentCategory.GENERAL
+        );
+    }
+
+    public Document(UUID id, String name, String s3Key, Folder folder, User owner, DocumentCategory category) {
+        this.id = id;
+        this.name = name;
+        this.s3Key = s3Key;
+        this.folder = folder;
+        this.owner = owner;
+        this.category = category;
+    }
+
 }

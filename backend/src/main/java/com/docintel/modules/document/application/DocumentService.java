@@ -13,9 +13,11 @@ import com.docintel.modules.folder.application.FolderService;
 import com.docintel.modules.folder.domain.Folder;
 import com.docintel.modules.folder.domain.FolderPermission;
 import com.docintel.modules.folder.domain.FolderRepository;
+import com.docintel.modules.folder.domain.enums.FolderVisibility;
 import com.docintel.shared.auth.CurrentUserProvider;
 import com.docintel.shared.contracts.FileStorage;
 import com.docintel.modules.user.domain.User;
+import com.docintel.shared.dto.TreeViewType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -82,14 +84,7 @@ public class DocumentService {
         String s3Key = fileStorage.resolveFileKey(documentId, fileName);
 
         // 2. Create metadata in PENDING state
-        Document document = new Document();
-        document.setId(documentId);
-        document.setName(fileName);
-        document.setS3Key(s3Key);
-        document.setFolder(targetFolder);
-        document.setOwner(currentUser);
-        document.setCategory(documentCategory != null ? documentCategory : DocumentCategory.GENERAL);
-        document.setStatus(DocumentStatus.PENDING);
+        Document document = Document.create(fileName, s3Key, targetFolder, currentUser, documentCategory);
 
         long size = request.size();
         long multipartThreshold = 5 * 1024 * 1024; // 5MB
@@ -199,19 +194,9 @@ public class DocumentService {
 
         // 5. Add root documents
         for (Document rootDoc : rootDocuments) {
+            FolderRole role = rootDoc.getOwner().getId().equals(userId) ? FolderRole.ADMIN : FolderRole.VIEWER;
             tree.add(new FileTreeViewResponseDTO(
-                    rootDoc.getId(),
-                    rootDoc.getName(),
-                    "FILE",
-                    rootDoc.getS3Key(),
-                    null,
-                    rootDoc.getCategory(),
-                    rootDoc.isAnalyzed(),
-                    List.of(),
-                    rootDoc.isFavorite(),
-                    rootDoc.getTags(),
-                    rootDoc.getOwner().getId(),
-                    rootDoc.getOwner().getId().equals(userId) ? FolderRole.ADMIN : FolderRole.VIEWER
+                    rootDoc, List.of(), role
             ));
         }
 
@@ -239,42 +224,27 @@ public class DocumentService {
         // Process subfolders
         List<Folder> subfolders = foldersByParentId.getOrDefault(folder.getId(), List.of());
         for (Folder sub : subfolders) {
-            children.add(buildFolderNode(sub, foldersByParentId, documentsByFolderId, roleByFolderId, userId, computedRole));
+            children.add(buildFolderNode(
+                    sub,
+                    foldersByParentId,
+                    documentsByFolderId,
+                    roleByFolderId,
+                    userId,
+                    computedRole)
+            );
         }
 
         // Process documents in this folder
         List<Document> docs = documentsByFolderId.getOrDefault(folder.getId(), List.of());
+
         for (Document doc : docs) {
             children.add(new FileTreeViewResponseDTO(
-                    doc.getId(),
-                    doc.getName(),
-                    "FILE",
-                    doc.getS3Key(),
-                    null,
-                    doc.getCategory(),
-                    doc.isAnalyzed(),
-                    List.of(),
-                    doc.isFavorite(),
-                    doc.getTags(),
-                    doc.getOwner().getId(),
-                    computedRole
-            ));
+                    doc,
+                    children,
+                    computedRole));
         }
 
-        return new FileTreeViewResponseDTO(
-                folder.getId(),
-                folder.getName(),
-                "FOLDER",
-                null,
-                folder.getFolderVisibility(),
-                null,
-                false,
-                children,
-                false,
-                "",
-                folder.getOwner().getId(),
-                computedRole
-        );
+        return new FileTreeViewResponseDTO(folder, children, computedRole);
     }
 
     @Transactional(readOnly = true)
@@ -292,6 +262,7 @@ public class DocumentService {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not authorized to access this document.");
             }
         }
+
         return doc;
     }
 

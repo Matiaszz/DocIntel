@@ -163,6 +163,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiError> handleResponseStatusException(ResponseStatusException e, HttpServletRequest request) {
         log.warn("Response status exception: {} - {}", e.getStatusCode(), e.getReason());
@@ -184,6 +185,25 @@ public class GlobalExceptionHandler {
                 .path(request.getRequestURI())
                 .build();
         return ResponseEntity.status(e.getStatusCode()).body(error);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleInvalidArgumentException(IllegalArgumentException e, HttpServletRequest request) {
+        log.warn("Invalid argument exception: {}", e.getMessage());
+
+        String errorName = HttpStatus.valueOf(400).getReasonPhrase();
+
+        String code = "ILLEGAL_ARGUMENT_EXCEPTION";
+
+        ApiError error = ApiError.builder()
+                .timestamp(OffsetDateTime.now())
+                .status(400)
+                .error(errorName)
+                .code(code)
+                .message(e.getMessage())
+                .path(request.getRequestURI())
+                .build();
+        return ResponseEntity.status(400).body(error);
     }
 
     @ExceptionHandler(Exception.class)
