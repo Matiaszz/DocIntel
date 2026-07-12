@@ -28,9 +28,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static com.docintel.modules.folder.domain.enums.FolderInviteStatus.ACCEPTED;
-import static com.docintel.modules.folder.domain.enums.FolderRole.ADMIN;
-
 @Service
 @RequiredArgsConstructor
 public class FolderService {
@@ -91,18 +88,11 @@ public class FolderService {
                 currentParent = existingFolder.get();
             } else {
                 // Create dynamic folder
-                Folder newFolder = new Folder();
-                newFolder.setName(folderName);
-                newFolder.setParent(currentParent);
-                newFolder.setOwner(currentUser);
+                Folder newFolder = Folder.create(folderName, currentParent, currentUser);
                 currentParent = folderRepository.save(newFolder);
 
                 // Admin by default when created
-                FolderPermission permission = new FolderPermission();
-                permission.setFolder(currentParent);
-                permission.setUser(currentUser);
-                permission.setRole(FolderRole.ADMIN);
-                permission.setInviteStatus(FolderInviteStatus.ACCEPTED);
+                FolderPermission permission = FolderPermission.create(newFolder);
                 permissionRepository.save(permission);
             }
         }
@@ -139,11 +129,7 @@ public class FolderService {
         FolderPermission permission;
         if (existingPermissionOpt.isPresent()) {
             permission = existingPermissionOpt.get();
-            if (permission.getInviteStatus() == FolderInviteStatus.ACCEPTED) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already has access to this folder");
-            }
             permission.setRole(role);
-            permission.setInviteStatus(FolderInviteStatus.PENDING);
         } else {
             permission = FolderPermission.builder()
                     .folder(folder)
@@ -180,15 +166,8 @@ public class FolderService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invitation not found"));
 
         UUID currentUserId = userProvider.getCurrentUserId();
-        if (!permission.getUser().getId().equals(currentUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This invitation does not belong to you");
-        }
 
-        if (permission.getInviteStatus() != FolderInviteStatus.PENDING) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invitation is not pending");
-        }
-
-        permission.setInviteStatus(FolderInviteStatus.ACCEPTED);
+        permission.accept(currentUserId);
         permissionRepository.save(permission);
     }
 
@@ -198,7 +177,8 @@ public class FolderService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invitation not found"));
 
         UUID currentUserId = userProvider.getCurrentUserId();
-        if (!permission.getUser().getId().equals(currentUserId)) {
+
+        if (!permission.belongsToUser(currentUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This invitation does not belong to you");
         }
 
@@ -254,7 +234,7 @@ public class FolderService {
 
         Folder folder = permission.getFolder();
 
-        if (!folder.getId().equals(folderId)) {
+        if (!permission.belongsToFolder(folderId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Permission does not belong to this folder");
         }
 
@@ -263,9 +243,8 @@ public class FolderService {
         }
 
         UUID currentUserId = userProvider.getCurrentUserId();
-        UUID folderOwnerId = folder.getOwner().getId();
 
-        if (folderOwnerId.equals(currentUserId)) {
+        if (folder.isOwnedBy(currentUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Owner's role cannot be changed");
         }
 
@@ -278,7 +257,7 @@ public class FolderService {
         FolderPermission permission = permissionRepository.findById(permissionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Permission not found"));
 
-        if (!permission.getFolder().getId().equals(folderId)) {
+        if (!permission.belongsToFolder(folderId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Permission does not belong to this folder");
         }
 
@@ -296,46 +275,33 @@ public class FolderService {
         List<FolderPermission> permissions = result.permissions();
 
         FolderPermission ownerPermission = permissions.stream()
-                .filter(fp -> fp.getUser().getId().equals(folder.getOwner().getId()))
+                .filter(fp -> fp.belongsToOwnerOf(folder))
                 .findFirst()
                 .orElse(null);
 
         if (ownerPermission == null) {
-            ownerPermission = new FolderPermission();
-            ownerPermission.setFolder(folder);
-            ownerPermission.setUser(folder.getOwner());
-            ownerPermission.setRole(ADMIN);
-            ownerPermission.setInviteStatus(ACCEPTED);
+            ownerPermission = FolderPermission.create(folder);
+
             ownerPermission = permissionRepository.save(ownerPermission);
         }
 
         return getFolderPermissionResponseDTOS(folder, permissions, ownerPermission);
     }
 
-    private static @NonNull List<FolderPermissionResponseDTO> getFolderPermissionResponseDTOS(Folder folder, List<FolderPermission> permissions, FolderPermission ownerPermission) {
+    private static List<FolderPermissionResponseDTO> getFolderPermissionResponseDTOS(
+            Folder folder,
+            List<FolderPermission> permissions,
+            FolderPermission ownerPermission
+    ) {
         List<FolderPermissionResponseDTO> list = new ArrayList<>();
-        list.add(new FolderPermissionResponseDTO(
-                ownerPermission.getId(),
-                folder.getOwner().getId(),
-                folder.getOwner().getFirstName() + " " + folder.getOwner().getLastName(),
-                folder.getOwner().getEmail(),
-                ownerPermission.getRole(),
-                "OWNER"
-        ));
+        list.add(FolderPermissionResponseDTO.createOwnerResponse(folder, ownerPermission));
 
         for (FolderPermission fp : permissions) {
-            if (fp.getUser().getId().equals(folder.getOwner().getId())) {
+            if (fp.belongsToOwnerOf(folder)) {
                 continue;
             }
 
-            list.add(new FolderPermissionResponseDTO(
-                    fp.getId(),
-                    fp.getUser().getId(),
-                    fp.getUser().getFirstName() + " " + fp.getUser().getLastName(),
-                    fp.getUser().getEmail(),
-                    fp.getRole(),
-                    fp.getInviteStatus().name()
-            ));
+            list.add(new FolderPermissionResponseDTO(fp));
         }
         return list;
     }

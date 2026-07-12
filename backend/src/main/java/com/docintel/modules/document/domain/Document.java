@@ -94,7 +94,7 @@ public class Document implements Persistable<UUID> {
         );
     }
 
-    public Document(UUID id, String name, String s3Key, Folder folder, User owner, DocumentCategory category) {
+    private Document(UUID id, String name, String s3Key, Folder folder, User owner, DocumentCategory category) {
         this.id = id;
         this.name = name;
         this.s3Key = s3Key;

@@ -54,12 +54,12 @@ public class FolderSecurityEvaluator {
                     && hasAuthority(permission.getRole(), requiredRole)) {
                 return true;
             }
-            if (folder.getOwner().getId().equals(userId)) {
+            if (folder.isOwnedBy(userId)) {
                 return hasAuthority(permission.getRole(), requiredRole);
             }
         }
 
-        if (folder.getOwner().getId().equals(userId)) {
+        if (folder.isOwnedBy(userId)) {
             return true;
         }
 

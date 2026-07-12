@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.UUID;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 @Entity
 @Table(name = "folders")
@@ -36,4 +35,35 @@ public class Folder {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FolderVisibility folderVisibility = FolderVisibility.PRIVATE;
+
+    public boolean isOwnedBy(UUID userId){
+        return this.owner.getId().equals(userId);
+    }
+
+    public static Folder create(String folderName, Folder parent, User owner) {
+        if (folderName == null || folderName.isBlank()) {
+            throw new IllegalArgumentException("Folder name cannot be empty");
+        }
+
+        if (owner == null) {
+            throw new IllegalArgumentException("Folder owner is required");
+        }
+
+        if (folderName.length() > 255) {
+            throw new IllegalArgumentException("Folder name cannot exceed 255 characters");
+        }
+
+        return new Folder(
+                folderName,
+                parent,
+                owner
+        );
+    }
+
+    private Folder(String folderName, Folder currentParent, User owner){
+        this.name = folderName;
+        this.parent = currentParent;
+        this.owner = owner;
+    }
+
 }

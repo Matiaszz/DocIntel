@@ -175,7 +175,7 @@ public class FolderServiceTest {
         // Arrange
         User user = new User();
 
-        // Act & Assert for ".."
+        // Act & Assert for "../"
         ResponseStatusException exception1 = assertThrows(ResponseStatusException.class, () -> {
             folderService.resolveAndCreatePath("finance/../invoices", null);
         });
