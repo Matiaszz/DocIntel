@@ -267,11 +267,6 @@ public class DocumentService {
         return doc;
     }
 
-    @Transactional(readOnly = true)
-    public InputStream downloadDocumentStream(Document doc) {
-        return fileStorage.download(doc.getS3Key());
-    }
-
     @Transactional
     public void deleteDocument(UUID id) {
         User currentUser = currentUserProvider.getCurrentUser();
@@ -376,10 +371,13 @@ public class DocumentService {
     public Document moveDocument(UUID documentId, UUID folderId) {
         Document document = getDocument(documentId);
         Folder folder = null;
-        if (folderId != null) {
+
+        boolean isNotRoot = folderId != null;
+
+        if (isNotRoot){
             folder = folderSecurity.getAuthorizedFolder(folderId, FolderRole.EDITOR);
             if (folder == null) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Folder not found or access denied.");
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied.");
             }
         }
 
