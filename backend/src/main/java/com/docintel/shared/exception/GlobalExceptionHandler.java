@@ -219,4 +219,20 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
+
+    @ExceptionHandler(UnsupportedOperationException.class)
+    public ResponseEntity<ApiError> handleUnsupportedOperationException(Exception e, HttpServletRequest request) {
+        log.error("Unsupported operation exception: {}", e.getMessage());
+        ApiError error = ApiError.builder()
+                .timestamp(OffsetDateTime.now())
+                .status(HttpStatus.NOT_IMPLEMENTED.value())
+                .error(HttpStatus.NOT_IMPLEMENTED.getReasonPhrase())
+                .code("UNSUPPORTED_OPERATION")
+                .message(e.getMessage())
+                .path(request.getRequestURI())
+                .build();
+        
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(error);
+
+    }
 }
