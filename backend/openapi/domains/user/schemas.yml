@@ -1,0 +1,38 @@
+UpdateUserRequest:
+  type: object
+  properties:
+    email:
+      type: string
+      format: email
+    firstName:
+      type: string
+    lastName:
+      type: string
+
+ChangePasswordRequest:
+  type: object
+  required:
+    - oldPassword
+    - newPassword
+  properties:
+    oldPassword:
+      type: string
+    newPassword:
+      type: string
+      minLength: 6
+
+UserResponse:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    email:
+      type: string
+      format: email
+    firstName:
+      type: string
+    lastName:
+      type: string
+    emailVerified:
+      type: boolean

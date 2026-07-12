@@ -1,0 +1,70 @@
+user:
+  get:
+    summary: Get user details by ID
+    tags:
+      - User Profile
+    parameters:
+      - in: query
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: User details retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yml#/UserResponse'
+      '403':
+        description: Unauthorized access
+
+user-me:
+  get:
+    summary: Get details of the currently authenticated user
+    tags:
+      - User Profile
+    responses:
+      '200':
+        description: Current user details retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yml#/UserResponse'
+  put:
+    summary: Update currently authenticated user's profile
+    tags:
+      - User Profile
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: './schemas.yml#/UpdateUserRequest'
+    responses:
+      '200':
+        description: Profile updated successfully
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yml#/UserResponse'
+      '400':
+        description: Validation errors
+
+user-me-password:
+  put:
+    summary: Change currently authenticated user's password
+    tags:
+      - User Profile
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: './schemas.yml#/ChangePasswordRequest'
+    responses:
+      '200':
+        description: Password updated successfully
+      '400':
+        description: Validation error or incorrect old password

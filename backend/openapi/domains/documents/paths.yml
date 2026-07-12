@@ -1,0 +1,316 @@
+documents-upload-initiate:
+  post:
+    summary: Initiate single-part or multipart document upload
+    tags:
+      - Documents
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: './schemas.yml#/UploadInitiateRequest'
+    responses:
+      '200':
+        description: Upload instructions returned
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yml#/UploadInitiateResponse'
+
+documents-id-complete:
+  post:
+    summary: Complete single-part or multipart document upload
+    tags:
+      - Documents
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: './schemas.yml#/UploadCompleteRequest'
+    responses:
+      '200':
+        description: Upload marked complete
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yml#/DocumentResponse'
+
+documents-resolve-path:
+  post:
+    summary: Dynamic path creation and resolver (Finder utility)
+    tags:
+      - Folders
+    parameters:
+      - in: query
+        name: relativePath
+        required: true
+        schema:
+          type: string
+        description: Path hierarchy like "SubfolderA/SubfolderB"
+      - in: query
+        name: parentFolderId
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Initial directory ID
+    responses:
+      '200':
+        description: Path resolved and folders created
+        content:
+          application/json:
+            schema:
+              $ref: '../folders/schemas.yml#/FolderResponse'
+      '403':
+        description: Insufficient permissions on the parent folder
+
+documents-tree:
+  get:
+    summary: Get the complete accessible folder and document tree
+    tags:
+      - File Explorer
+    responses:
+      '200':
+        description: Entire accessible tree view
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: './schemas.yml#/FileTreeViewResponse'
+
+documents-categories:
+  get:
+    summary: List all predefined document category options
+    tags:
+      - File Explorer
+    responses:
+      '200':
+        description: Document category descriptors
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: './schemas.yml#/CategoryDetail'
+
+documents-id-presigned-url:
+  get:
+    summary: Get an AWS S3 pre-signed download URL for a document
+    tags:
+      - Documents
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Pre-signed URL generated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  format: uri
+      '403':
+        description: Insufficient permissions
+
+documents-download-id:
+  get:
+    summary: Direct document download link (302 Redirect to pre-signed S3 URL)
+    tags:
+      - Documents
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '302':
+        description: Redirecting to S3 pre-signed download URL
+
+documents-view-id:
+  get:
+    summary: Direct inline document preview link (302 Redirect to pre-signed S3 URL)
+    tags:
+      - Documents
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '302':
+        description: Redirecting to S3 pre-signed preview URL
+
+documents-id:
+  delete:
+    summary: Delete a document
+    tags:
+      - Documents
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '204':
+        description: Document deleted successfully
+      '403':
+        description: Insufficient permissions
+
+documents-search:
+  get:
+    summary: Paginated search and filtering of documents
+    tags:
+      - File Explorer
+    parameters:
+      - in: query
+        name: search
+        required: false
+        schema:
+          type: string
+        description: Case-insensitive search keyword
+      - in: query
+        name: category
+        required: false
+        schema:
+          type: string
+        description: Document category enum string
+      - in: query
+        name: favorite
+        required: false
+        schema:
+          type: boolean
+        description: Filter for starred/favorite documents only
+      - in: query
+        name: tag
+        required: false
+        schema:
+          type: string
+        description: Filter by document tag
+      - in: query
+        name: page
+        required: false
+        schema:
+          type: integer
+          default: 0
+        description: Page index (0-based)
+      - in: query
+        name: size
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Items per page
+    responses:
+      '200':
+        description: Paginated documents list
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: array
+                  items:
+                    $ref: './schemas.yml#/DocumentResponse'
+                totalPages:
+                  type: integer
+                totalElements:
+                  type: integer
+
+documents-id-favorite:
+  put:
+    summary: Toggle favorite/starred flag for a document
+    tags:
+      - Documents
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Starred status toggled
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yml#/DocumentResponse'
+
+documents-id-tags:
+  put:
+    summary: Update tags string on a document
+    tags:
+      - Documents
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: string
+            example: "work, invoice, important"
+    responses:
+      '200':
+        description: Tags updated successfully
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yml#/DocumentResponse'
+
+documents-move-id:
+  put:
+    summary: Move a document to a new folder or the root directory
+    tags:
+      - Documents
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The ID of the document to move
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: './schemas.yml#/MoveDocumentRequest'
+    responses:
+      '200':
+        description: Document moved successfully
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yml#/DocumentResponse'
+      '403':
+        description: Insufficient permissions on document or destination folder

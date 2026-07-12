@@ -1,0 +1,73 @@
+FolderInviteRequest:
+  type: object
+  required:
+    - email
+    - role
+  properties:
+    email:
+      type: string
+      format: email
+    role:
+      type: string
+      enum: [ADMIN, EDITOR, VIEWER]
+
+UpdatePermissionRequest:
+  type: object
+  required:
+    - role
+  properties:
+    role:
+      type: string
+      enum: [ADMIN, EDITOR, VIEWER]
+
+MoveFolderRequest:
+  type: object
+  properties:
+    parentFolderId:
+      type: string
+      format: uuid
+      nullable: true
+      description: ID of parent folder, or null to move to root directory.
+
+FolderResponse:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+      nullable: true
+    name:
+      type: string
+    parentId:
+      type: string
+      format: uuid
+      nullable: true
+
+FolderPermissionResponse:
+  type: object
+  properties:
+    permissionId:
+      type: string
+      format: uuid
+    user:
+      $ref: '../user/schemas.yml#/UserResponse'
+    role:
+      type: string
+    inviteStatus:
+      type: string
+
+PendingInviteResponse:
+  type: object
+  properties:
+    inviteId:
+      type: string
+      format: uuid
+    folderId:
+      type: string
+      format: uuid
+    folderName:
+      type: string
+    invitedBy:
+      type: string
+    role:
+      type: string

@@ -1,0 +1,65 @@
+RegisterRequest:
+  type: object
+  required:
+    - email
+    - password
+    - firstName
+    - lastName
+  properties:
+    email:
+      type: string
+      format: email
+    password:
+      type: string
+      minLength: 6
+    firstName:
+      type: string
+    lastName:
+      type: string
+
+LoginRequest:
+  type: object
+  required:
+    - email
+    - password
+  properties:
+    email:
+      type: string
+      format: email
+    password:
+      type: string
+
+ForgotPasswordRequest:
+  type: object
+  required:
+    - email
+  properties:
+    email:
+      type: string
+      format: email
+
+ResetPasswordRequest:
+  type: object
+  required:
+    - token
+    - newPassword
+  properties:
+    token:
+      type: string
+    newPassword:
+      type: string
+      minLength: 6
+
+LoginResponse:
+  type: object
+  properties:
+    accessToken:
+      type: string
+    user:
+      $ref: '../user/schemas.yml#/UserResponse'
+
+TokenResponse:
+  type: object
+  properties:
+    accessToken:
+      type: string

@@ -8,12 +8,9 @@ servers:
     description: Local development server
   - url: /
     description: Current host server
-
 security:
   - BearerAuth: []
-
 paths:
-  # Authentication Endpoints
   /auth/register:
     post:
       summary: Register a new user
@@ -35,7 +32,6 @@ paths:
                 $ref: '#/components/schemas/UserResponse'
         '400':
           description: Invalid input or user already exists
-
   /auth/login:
     post:
       summary: Authenticate user and return token
@@ -62,7 +58,6 @@ paths:
                 $ref: '#/components/schemas/LoginResponse'
         '401':
           description: Invalid credentials
-
   /auth/refresh:
     post:
       summary: Refresh access token using HttpOnly cookie
@@ -84,7 +79,6 @@ paths:
                 $ref: '#/components/schemas/TokenResponse'
         '401':
           description: Missing or invalid refresh token
-
   /auth/logout:
     post:
       summary: Logout user and invalidate refresh token
@@ -99,7 +93,6 @@ paths:
       responses:
         '200':
           description: Logged out successfully. Clears the HttpOnly refreshToken cookie.
-
   /auth/verify-email:
     post:
       summary: Verify user's email address
@@ -117,7 +110,6 @@ paths:
           description: Email verified successfully
         '400':
           description: Invalid or expired verification token
-
   /auth/resend-verification:
     post:
       summary: Resend verification email
@@ -134,7 +126,6 @@ paths:
       responses:
         '200':
           description: Verification email resent successfully
-
   /auth/forgot-password:
     post:
       summary: Initiate password reset flow
@@ -150,7 +141,6 @@ paths:
       responses:
         '200':
           description: Password reset email sent if user exists
-
   /auth/reset-password:
     post:
       summary: Reset password using verification token
@@ -168,8 +158,6 @@ paths:
           description: Password reset successfully
         '400':
           description: Invalid/expired token or validation failure
-
-  # User Endpoints
   /user:
     get:
       summary: Get user details by ID
@@ -191,7 +179,6 @@ paths:
                 $ref: '#/components/schemas/UserResponse'
         '403':
           description: Unauthorized access
-
   /user/me:
     get:
       summary: Get details of the currently authenticated user
@@ -223,7 +210,6 @@ paths:
                 $ref: '#/components/schemas/UserResponse'
         '400':
           description: Validation errors
-
   /user/me/password:
     put:
       summary: Change currently authenticated user's password
@@ -240,8 +226,6 @@ paths:
           description: Password updated successfully
         '400':
           description: Validation error or incorrect old password
-
-  # Folder Management & Sharing Endpoints
   /api/folders/{id}/invites:
     post:
       summary: Invite a user to access a folder
@@ -268,7 +252,6 @@ paths:
           description: Insufficient permissions (requires ADMIN/EDITOR)
         '404':
           description: Folder not found
-
   /api/folders/invites/pending:
     get:
       summary: Get pending folder invites for currently logged-in user
@@ -283,7 +266,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PendingInviteResponse'
-
   /api/folders/invites/{inviteId}/accept:
     post:
       summary: Accept a pending folder invite
@@ -301,7 +283,6 @@ paths:
           description: Invite accepted successfully
         '404':
           description: Invite not found or already processed
-
   /api/folders/invites/{inviteId}/reject:
     post:
       summary: Reject/decline a pending folder invite
@@ -319,7 +300,6 @@ paths:
           description: Invite rejected successfully
         '404':
           description: Invite not found or already processed
-
   /api/folders/{id}/toggle-visibility:
     post:
       summary: Toggle folder visibility (PUBLIC / PRIVATE)
@@ -337,7 +317,6 @@ paths:
           description: Folder visibility toggled successfully
         '403':
           description: Insufficient permissions (requires EDITOR/ADMIN)
-
   /api/folders/{id}/permissions:
     get:
       summary: Get the list of all permissions/collaborators on a folder
@@ -359,7 +338,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/FolderPermissionResponse'
-
   /api/folders/{id}/permissions/{permissionId}:
     put:
       summary: Update a collaborator's access role on a folder
@@ -411,7 +389,6 @@ paths:
           description: Access removed successfully
         '403':
           description: Insufficient permissions
-
   /api/folders/move/{id}:
     put:
       summary: Move a folder to a new parent folder or the root directory
@@ -442,8 +419,6 @@ paths:
           description: Invalid operation (e.g. cycle detected, or moving into itself)
         '403':
           description: Insufficient permissions on the folder or destination
-
-  # Document Upload, Retrieval & Management Endpoints
   /api/documents/upload/initiate:
     post:
       summary: Initiate single-part or multipart document upload
@@ -462,7 +437,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UploadInitiateResponse'
-
   /api/documents/{id}/complete:
     post:
       summary: Complete single-part or multipart document upload
@@ -488,7 +462,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DocumentResponse'
-
   /api/documents/resolve-path:
     post:
       summary: Dynamic path creation and resolver (Finder utility)
@@ -517,7 +490,6 @@ paths:
                 $ref: '#/components/schemas/FolderResponse'
         '403':
           description: Insufficient permissions on the parent folder
-
   /api/documents/tree:
     get:
       summary: Get the complete accessible folder and document tree
@@ -532,7 +504,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/FileTreeViewResponse'
-
   /api/documents/categories:
     get:
       summary: List all predefined document category options
@@ -547,7 +518,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CategoryDetail'
-
   /api/documents/{id}/presigned-url:
     get:
       summary: Get an AWS S3 pre-signed download URL for a document
@@ -573,7 +543,6 @@ paths:
                     format: uri
         '403':
           description: Insufficient permissions
-
   /api/documents/download/{id}:
     get:
       summary: Direct document download link (302 Redirect to pre-signed S3 URL)
@@ -589,7 +558,6 @@ paths:
       responses:
         '302':
           description: Redirecting to S3 pre-signed download URL
-
   /api/documents/view/{id}:
     get:
       summary: Direct inline document preview link (302 Redirect to pre-signed S3 URL)
@@ -605,7 +573,6 @@ paths:
       responses:
         '302':
           description: Redirecting to S3 pre-signed preview URL
-
   /api/documents/{id}:
     delete:
       summary: Delete a document
@@ -623,7 +590,6 @@ paths:
           description: Document deleted successfully
         '403':
           description: Insufficient permissions
-
   /api/documents/folders/{id}:
     delete:
       summary: Delete a folder and recursively all its contents
@@ -641,7 +607,6 @@ paths:
           description: Folder and all contents deleted successfully
         '403':
           description: Insufficient permissions
-
   /api/documents/folders/download-zip/{id}:
     get:
       summary: Download all folder contents zipped
@@ -664,7 +629,6 @@ paths:
                 format: binary
         '403':
           description: Insufficient permissions
-
   /api/documents/search:
     get:
       summary: Paginated search and filtering of documents
@@ -725,7 +689,6 @@ paths:
                     type: integer
                   totalElements:
                     type: integer
-
   /api/documents/{id}/favorite:
     put:
       summary: Toggle favorite/starred flag for a document
@@ -745,7 +708,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DocumentResponse'
-
   /api/documents/{id}/tags:
     put:
       summary: Update tags string on a document
@@ -764,7 +726,7 @@ paths:
           application/json:
             schema:
               type: string
-              example: "work, invoice, important"
+              example: work, invoice, important
       responses:
         '200':
           description: Tags updated successfully
@@ -772,7 +734,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DocumentResponse'
-
   /api/documents/move/{id}:
     put:
       summary: Move a document to a new folder or the root directory
@@ -801,14 +762,12 @@ paths:
                 $ref: '#/components/schemas/DocumentResponse'
         '403':
           description: Insufficient permissions on document or destination folder
-
 components:
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
   schemas:
     RegisterRequest:
       type: object
@@ -828,7 +787,6 @@ components:
           type: string
         lastName:
           type: string
-
     LoginRequest:
       type: object
       required:
@@ -840,7 +798,6 @@ components:
           format: email
         password:
           type: string
-
     ForgotPasswordRequest:
       type: object
       required:
@@ -849,7 +806,6 @@ components:
         email:
           type: string
           format: email
-
     ResetPasswordRequest:
       type: object
       required:
@@ -861,7 +817,18 @@ components:
         newPassword:
           type: string
           minLength: 6
-
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserResponse'
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
     UpdateUserRequest:
       type: object
       properties:
@@ -872,7 +839,6 @@ components:
           type: string
         lastName:
           type: string
-
     ChangePasswordRequest:
       type: object
       required:
@@ -884,7 +850,6 @@ components:
         newPassword:
           type: string
           minLength: 6
-
     UserResponse:
       type: object
       properties:
@@ -900,21 +865,6 @@ components:
           type: string
         emailVerified:
           type: boolean
-
-    LoginResponse:
-      type: object
-      properties:
-        accessToken:
-          type: string
-        user:
-          $ref: '#/components/schemas/UserResponse'
-
-    TokenResponse:
-      type: object
-      properties:
-        accessToken:
-          type: string
-
     FolderInviteRequest:
       type: object
       required:
@@ -926,8 +876,10 @@ components:
           format: email
         role:
           type: string
-          enum: [ADMIN, EDITOR, VIEWER]
-
+          enum:
+            - ADMIN
+            - EDITOR
+            - VIEWER
     UpdatePermissionRequest:
       type: object
       required:
@@ -935,8 +887,10 @@ components:
       properties:
         role:
           type: string
-          enum: [ADMIN, EDITOR, VIEWER]
-
+          enum:
+            - ADMIN
+            - EDITOR
+            - VIEWER
     MoveFolderRequest:
       type: object
       properties:
@@ -945,16 +899,6 @@ components:
           format: uuid
           nullable: true
           description: ID of parent folder, or null to move to root directory.
-
-    MoveDocumentRequest:
-      type: object
-      properties:
-        folderId:
-          type: string
-          format: uuid
-          nullable: true
-          description: ID of the folder, or null to move to root directory.
-
     FolderResponse:
       type: object
       properties:
@@ -968,7 +912,6 @@ components:
           type: string
           format: uuid
           nullable: true
-
     FolderPermissionResponse:
       type: object
       properties:
@@ -981,7 +924,6 @@ components:
           type: string
         inviteStatus:
           type: string
-
     PendingInviteResponse:
       type: object
       properties:
@@ -997,7 +939,14 @@ components:
           type: string
         role:
           type: string
-
+    MoveDocumentRequest:
+      type: object
+      properties:
+        folderId:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the folder, or null to move to root directory.
     UploadInitiateRequest:
       type: object
       required:
@@ -1018,7 +967,6 @@ components:
         category:
           type: string
           nullable: true
-
     UploadInitiateResponse:
       type: object
       properties:
@@ -1035,7 +983,6 @@ components:
             format: uri
         chunkSize:
           type: integer
-
     UploadCompleteRequest:
       type: object
       properties:
@@ -1046,7 +993,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PartDTO'
-
     PartDTO:
       type: object
       properties:
@@ -1055,7 +1001,6 @@ components:
         eTag:
           type: string
           nullable: true
-
     DocumentResponse:
       type: object
       properties:
@@ -1081,7 +1026,6 @@ components:
           type: boolean
         tags:
           type: string
-
     FileTreeViewResponse:
       type: object
       properties:
@@ -1092,7 +1036,9 @@ components:
           type: string
         type:
           type: string
-          enum: [FOLDER, FILE]
+          enum:
+            - FOLDER
+            - FILE
         children:
           type: array
           items:
@@ -1112,7 +1058,6 @@ components:
         visibility:
           type: string
           nullable: true
-
     CategoryDetail:
       type: object
       properties:
@@ -1126,7 +1071,6 @@ components:
           type: string
         color:
           type: string
-
     PartResponse:
       type: object
       properties:

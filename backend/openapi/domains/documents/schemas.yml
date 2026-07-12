@@ -1,0 +1,145 @@
+MoveDocumentRequest:
+  type: object
+  properties:
+    folderId:
+      type: string
+      format: uuid
+      nullable: true
+      description: ID of the folder, or null to move to root directory.
+
+UploadInitiateRequest:
+  type: object
+  required:
+    - name
+    - size
+    - contentType
+  properties:
+    name:
+      type: string
+    size:
+      type: integer
+    contentType:
+      type: string
+    folderId:
+      type: string
+      format: uuid
+      nullable: true
+    category:
+      type: string
+      nullable: true
+
+UploadInitiateResponse:
+  type: object
+  properties:
+    documentId:
+      type: string
+      format: uuid
+    uploadId:
+      type: string
+      nullable: true
+    urls:
+      type: array
+      items:
+        type: string
+        format: uri
+    chunkSize:
+      type: integer
+
+UploadCompleteRequest:
+  type: object
+  properties:
+    uploadId:
+      type: string
+      nullable: true
+    parts:
+      type: array
+      items:
+        $ref: './schemas.yml#/PartDTO'
+
+PartDTO:
+  type: object
+  properties:
+    partNumber:
+      type: integer
+    eTag:
+      type: string
+      nullable: true
+
+DocumentResponse:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    size:
+      type: integer
+    contentType:
+      type: string
+    status:
+      type: string
+    folderId:
+      type: string
+      format: uuid
+      nullable: true
+    category:
+      type: string
+      nullable: true
+    favorite:
+      type: boolean
+    tags:
+      type: string
+
+FileTreeViewResponse:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    type:
+      type: string
+      enum: [FOLDER, FILE]
+    children:
+      type: array
+      items:
+        $ref: './schemas.yml#/FileTreeViewResponse'
+    favorite:
+      type: boolean
+      nullable: true
+    tags:
+      type: string
+      nullable: true
+    category:
+      type: string
+      nullable: true
+    role:
+      type: string
+      nullable: true
+    visibility:
+      type: string
+      nullable: true
+
+CategoryDetail:
+  type: object
+  properties:
+    id:
+      type: string
+    label:
+      type: string
+    type:
+      type: string
+    description:
+      type: string
+    color:
+      type: string
+
+PartResponse:
+  type: object
+  properties:
+    partNumber:
+      type: integer
+    eTag:
+      type: string

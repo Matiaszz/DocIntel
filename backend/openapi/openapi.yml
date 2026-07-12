@@ -1,0 +1,154 @@
+openapi: 3.0.3
+info:
+  title: DocIntel API Documentation
+  description: API specifications for the DocIntel document management system. Includes authentication, folder management, file uploading/downloading, and sharing permissions.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: /
+    description: Current host server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Authentication Endpoints
+  /auth/register:
+    $ref: './domains/auth/paths.yml#/register'
+  /auth/login:
+    $ref: './domains/auth/paths.yml#/login'
+  /auth/refresh:
+    $ref: './domains/auth/paths.yml#/refresh'
+  /auth/logout:
+    $ref: './domains/auth/paths.yml#/logout'
+  /auth/verify-email:
+    $ref: './domains/auth/paths.yml#/verify-email'
+  /auth/resend-verification:
+    $ref: './domains/auth/paths.yml#/resend-verification'
+  /auth/forgot-password:
+    $ref: './domains/auth/paths.yml#/forgot-password'
+  /auth/reset-password:
+    $ref: './domains/auth/paths.yml#/reset-password'
+
+  # User Endpoints
+  /user:
+    $ref: './domains/user/paths.yml#/user'
+  /user/me:
+    $ref: './domains/user/paths.yml#/user-me'
+  /user/me/password:
+    $ref: './domains/user/paths.yml#/user-me-password'
+
+  # Folder Management & Sharing Endpoints
+  /api/folders/{id}/invites:
+    $ref: './domains/folders/paths.yml#/folders-id-invites'
+  /api/folders/invites/pending:
+    $ref: './domains/folders/paths.yml#/folders-invites-pending'
+  /api/folders/invites/{inviteId}/accept:
+    $ref: './domains/folders/paths.yml#/folders-invites-inviteId-accept'
+  /api/folders/invites/{inviteId}/reject:
+    $ref: './domains/folders/paths.yml#/folders-invites-inviteId-reject'
+  /api/folders/{id}/toggle-visibility:
+    $ref: './domains/folders/paths.yml#/folders-id-toggle-visibility'
+  /api/folders/{id}/permissions:
+    $ref: './domains/folders/paths.yml#/folders-id-permissions'
+  /api/folders/{id}/permissions/{permissionId}:
+    $ref: './domains/folders/paths.yml#/folders-id-permissions-permissionId'
+  /api/folders/move/{id}:
+    $ref: './domains/folders/paths.yml#/folders-move-id'
+
+  # Document Upload, Retrieval & Management Endpoints
+  /api/documents/upload/initiate:
+    $ref: './domains/documents/paths.yml#/documents-upload-initiate'
+  /api/documents/{id}/complete:
+    $ref: './domains/documents/paths.yml#/documents-id-complete'
+  /api/documents/resolve-path:
+    $ref: './domains/documents/paths.yml#/documents-resolve-path'
+  /api/documents/tree:
+    $ref: './domains/documents/paths.yml#/documents-tree'
+  /api/documents/categories:
+    $ref: './domains/documents/paths.yml#/documents-categories'
+  /api/documents/{id}/presigned-url:
+    $ref: './domains/documents/paths.yml#/documents-id-presigned-url'
+  /api/documents/download/{id}:
+    $ref: './domains/documents/paths.yml#/documents-download-id'
+  /api/documents/view/{id}:
+    $ref: './domains/documents/paths.yml#/documents-view-id'
+  /api/documents/{id}:
+    $ref: './domains/documents/paths.yml#/documents-id'
+  /api/documents/folders/{id}:
+    $ref: './domains/folders/paths.yml#/documents-folders-id'
+  /api/documents/folders/download-zip/{id}:
+    $ref: './domains/folders/paths.yml#/documents-folders-download-zip-id'
+  /api/documents/search:
+    $ref: './domains/documents/paths.yml#/documents-search'
+  /api/documents/{id}/favorite:
+    $ref: './domains/documents/paths.yml#/documents-id-favorite'
+  /api/documents/{id}/tags:
+    $ref: './domains/documents/paths.yml#/documents-id-tags'
+  /api/documents/move/{id}:
+    $ref: './domains/documents/paths.yml#/documents-move-id'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # Auth Schemas
+    RegisterRequest:
+      $ref: './domains/auth/schemas.yml#/RegisterRequest'
+    LoginRequest:
+      $ref: './domains/auth/schemas.yml#/LoginRequest'
+    ForgotPasswordRequest:
+      $ref: './domains/auth/schemas.yml#/ForgotPasswordRequest'
+    ResetPasswordRequest:
+      $ref: './domains/auth/schemas.yml#/ResetPasswordRequest'
+    LoginResponse:
+      $ref: './domains/auth/schemas.yml#/LoginResponse'
+    TokenResponse:
+      $ref: './domains/auth/schemas.yml#/TokenResponse'
+
+    # User Schemas
+    UpdateUserRequest:
+      $ref: './domains/user/schemas.yml#/UpdateUserRequest'
+    ChangePasswordRequest:
+      $ref: './domains/user/schemas.yml#/ChangePasswordRequest'
+    UserResponse:
+      $ref: './domains/user/schemas.yml#/UserResponse'
+
+    # Folder Schemas
+    FolderInviteRequest:
+      $ref: './domains/folders/schemas.yml#/FolderInviteRequest'
+    UpdatePermissionRequest:
+      $ref: './domains/folders/schemas.yml#/UpdatePermissionRequest'
+    MoveFolderRequest:
+      $ref: './domains/folders/schemas.yml#/MoveFolderRequest'
+    FolderResponse:
+      $ref: './domains/folders/schemas.yml#/FolderResponse'
+    FolderPermissionResponse:
+      $ref: './domains/folders/schemas.yml#/FolderPermissionResponse'
+    PendingInviteResponse:
+      $ref: './domains/folders/schemas.yml#/PendingInviteResponse'
+
+    # Document Schemas
+    MoveDocumentRequest:
+      $ref: './domains/documents/schemas.yml#/MoveDocumentRequest'
+    UploadInitiateRequest:
+      $ref: './domains/documents/schemas.yml#/UploadInitiateRequest'
+    UploadInitiateResponse:
+      $ref: './domains/documents/schemas.yml#/UploadInitiateResponse'
+    UploadCompleteRequest:
+      $ref: './domains/documents/schemas.yml#/UploadCompleteRequest'
+    PartDTO:
+      $ref: './domains/documents/schemas.yml#/PartDTO'
+    DocumentResponse:
+      $ref: './domains/documents/schemas.yml#/DocumentResponse'
+    FileTreeViewResponse:
+      $ref: './domains/documents/schemas.yml#/FileTreeViewResponse'
+    CategoryDetail:
+      $ref: './domains/documents/schemas.yml#/CategoryDetail'
+    PartResponse:
+      $ref: './domains/documents/schemas.yml#/PartResponse'

@@ -1,0 +1,241 @@
+folders-id-invites:
+  post:
+    summary: Invite a user to access a folder
+    tags:
+      - Folder Sharing
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Folder ID
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: './schemas.yml#/FolderInviteRequest'
+    responses:
+      '204':
+        description: Invite sent successfully
+      '403':
+        description: Insufficient permissions (requires ADMIN/EDITOR)
+      '404':
+        description: Folder not found
+
+folders-invites-pending:
+  get:
+    summary: Get pending folder invites for currently logged-in user
+    tags:
+      - Folder Sharing
+    responses:
+      '200':
+        description: List of pending invites
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: './schemas.yml#/PendingInviteResponse'
+
+folders-invites-inviteId-accept:
+  post:
+    summary: Accept a pending folder invite
+    tags:
+      - Folder Sharing
+    parameters:
+      - in: path
+        name: inviteId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '204':
+        description: Invite accepted successfully
+      '404':
+        description: Invite not found or already processed
+
+folders-invites-inviteId-reject:
+  post:
+    summary: Reject/decline a pending folder invite
+    tags:
+      - Folder Sharing
+    parameters:
+      - in: path
+        name: inviteId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '204':
+        description: Invite rejected successfully
+      '404':
+        description: Invite not found or already processed
+
+folders-id-toggle-visibility:
+  post:
+    summary: Toggle folder visibility (PUBLIC / PRIVATE)
+    tags:
+      - Folders
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '204':
+        description: Folder visibility toggled successfully
+      '403':
+        description: Insufficient permissions (requires EDITOR/ADMIN)
+
+folders-id-permissions:
+  get:
+    summary: Get the list of all permissions/collaborators on a folder
+    tags:
+      - Folder Sharing
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Collaborators list retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: './schemas.yml#/FolderPermissionResponse'
+
+folders-id-permissions-permissionId:
+  put:
+    summary: Update a collaborator's access role on a folder
+    tags:
+      - Folder Sharing
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: permissionId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: './schemas.yml#/UpdatePermissionRequest'
+    responses:
+      '204':
+        description: Permission updated successfully
+      '403':
+        description: Insufficient permissions
+  delete:
+    summary: Remove a collaborator's access from a folder
+    tags:
+      - Folder Sharing
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: permissionId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '204':
+        description: Access removed successfully
+      '403':
+        description: Insufficient permissions
+
+folders-move-id:
+  put:
+    summary: Move a folder to a new parent folder or the root directory
+    tags:
+      - Folders
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The ID of the folder to move
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: './schemas.yml#/MoveFolderRequest'
+    responses:
+      '200':
+        description: Folder moved successfully
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yml#/FolderResponse'
+      '400':
+        description: Invalid operation (e.g. cycle detected, or moving into itself)
+      '403':
+        description: Insufficient permissions on the folder or destination
+
+documents-folders-id:
+  delete:
+    summary: Delete a folder and recursively all its contents
+    tags:
+      - Folders
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '204':
+        description: Folder and all contents deleted successfully
+      '403':
+        description: Insufficient permissions
+
+documents-folders-download-zip-id:
+  get:
+    summary: Download all folder contents zipped
+    tags:
+      - Folders
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: ZIP file binary stream containing the folder contents
+        content:
+          application/zip:
+            schema:
+              type: string
+              format: binary
+      '403':
+        description: Insufficient permissions
