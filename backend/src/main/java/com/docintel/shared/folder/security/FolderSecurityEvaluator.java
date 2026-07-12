@@ -1,4 +1,4 @@
-package com.docintel.modules.folder.infrastructure.security;
+package com.docintel.shared.folder.security;
 
 import com.docintel.modules.folder.domain.Folder;
 import com.docintel.modules.folder.domain.FolderPermission;
@@ -8,11 +8,8 @@ import com.docintel.modules.folder.domain.enums.FolderInviteStatus;
 import com.docintel.modules.folder.domain.enums.FolderRole;
 import com.docintel.modules.folder.domain.enums.FolderVisibility;
 import com.docintel.shared.auth.CurrentUserProvider;
-import com.sun.net.httpserver.HttpsServer;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 import java.util.UUID;

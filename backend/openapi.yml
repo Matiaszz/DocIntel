@@ -1,0 +1,1136 @@
+openapi: 3.0.3
+info:
+  title: DocIntel API Documentation
+  description: API specifications for the DocIntel document management system. Includes authentication, folder management, file uploading/downloading, and sharing permissions.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: /
+    description: Current host server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Authentication Endpoints
+  /auth/register:
+    post:
+      summary: Register a new user
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid input or user already exists
+
+  /auth/login:
+    post:
+      summary: Authenticate user and return token
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful. Sets a secure HttpOnly refreshToken cookie.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: refreshToken=abc123xyz; Path=/; HttpOnly; Secure; SameSite=Strict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+
+  /auth/refresh:
+    post:
+      summary: Refresh access token using HttpOnly cookie
+      tags:
+        - Authentication
+      security: []
+      parameters:
+        - in: cookie
+          name: refreshToken
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Missing or invalid refresh token
+
+  /auth/logout:
+    post:
+      summary: Logout user and invalidate refresh token
+      tags:
+        - Authentication
+      security: []
+      parameters:
+        - in: cookie
+          name: refreshToken
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Logged out successfully. Clears the HttpOnly refreshToken cookie.
+
+  /auth/verify-email:
+    post:
+      summary: Verify user's email address
+      tags:
+        - Authentication
+      security: []
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email verified successfully
+        '400':
+          description: Invalid or expired verification token
+
+  /auth/resend-verification:
+    post:
+      summary: Resend verification email
+      tags:
+        - Authentication
+      security: []
+      parameters:
+        - in: query
+          name: email
+          required: true
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: Verification email resent successfully
+
+  /auth/forgot-password:
+    post:
+      summary: Initiate password reset flow
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Password reset email sent if user exists
+
+  /auth/reset-password:
+    post:
+      summary: Reset password using verification token
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset successfully
+        '400':
+          description: Invalid/expired token or validation failure
+
+  # User Endpoints
+  /user:
+    get:
+      summary: Get user details by ID
+      tags:
+        - User Profile
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '403':
+          description: Unauthorized access
+
+  /user/me:
+    get:
+      summary: Get details of the currently authenticated user
+      tags:
+        - User Profile
+      responses:
+        '200':
+          description: Current user details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+    put:
+      summary: Update currently authenticated user's profile
+      tags:
+        - User Profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation errors
+
+  /user/me/password:
+    put:
+      summary: Change currently authenticated user's password
+      tags:
+        - User Profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password updated successfully
+        '400':
+          description: Validation error or incorrect old password
+
+  # Folder Management & Sharing Endpoints
+  /api/folders/{id}/invites:
+    post:
+      summary: Invite a user to access a folder
+      tags:
+        - Folder Sharing
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Folder ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FolderInviteRequest'
+      responses:
+        '204':
+          description: Invite sent successfully
+        '403':
+          description: Insufficient permissions (requires ADMIN/EDITOR)
+        '404':
+          description: Folder not found
+
+  /api/folders/invites/pending:
+    get:
+      summary: Get pending folder invites for currently logged-in user
+      tags:
+        - Folder Sharing
+      responses:
+        '200':
+          description: List of pending invites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PendingInviteResponse'
+
+  /api/folders/invites/{inviteId}/accept:
+    post:
+      summary: Accept a pending folder invite
+      tags:
+        - Folder Sharing
+      parameters:
+        - in: path
+          name: inviteId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Invite accepted successfully
+        '404':
+          description: Invite not found or already processed
+
+  /api/folders/invites/{inviteId}/reject:
+    post:
+      summary: Reject/decline a pending folder invite
+      tags:
+        - Folder Sharing
+      parameters:
+        - in: path
+          name: inviteId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Invite rejected successfully
+        '404':
+          description: Invite not found or already processed
+
+  /api/folders/{id}/toggle-visibility:
+    post:
+      summary: Toggle folder visibility (PUBLIC / PRIVATE)
+      tags:
+        - Folders
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Folder visibility toggled successfully
+        '403':
+          description: Insufficient permissions (requires EDITOR/ADMIN)
+
+  /api/folders/{id}/permissions:
+    get:
+      summary: Get the list of all permissions/collaborators on a folder
+      tags:
+        - Folder Sharing
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Collaborators list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FolderPermissionResponse'
+
+  /api/folders/{id}/permissions/{permissionId}:
+    put:
+      summary: Update a collaborator's access role on a folder
+      tags:
+        - Folder Sharing
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: permissionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePermissionRequest'
+      responses:
+        '204':
+          description: Permission updated successfully
+        '403':
+          description: Insufficient permissions
+    delete:
+      summary: Remove a collaborator's access from a folder
+      tags:
+        - Folder Sharing
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: permissionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Access removed successfully
+        '403':
+          description: Insufficient permissions
+
+  /api/folders/move/{id}:
+    put:
+      summary: Move a folder to a new parent folder or the root directory
+      tags:
+        - Folders
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the folder to move
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveFolderRequest'
+      responses:
+        '200':
+          description: Folder moved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderResponse'
+        '400':
+          description: Invalid operation (e.g. cycle detected, or moving into itself)
+        '403':
+          description: Insufficient permissions on the folder or destination
+
+  # Document Upload, Retrieval & Management Endpoints
+  /api/documents/upload/initiate:
+    post:
+      summary: Initiate single-part or multipart document upload
+      tags:
+        - Documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadInitiateRequest'
+      responses:
+        '200':
+          description: Upload instructions returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadInitiateResponse'
+
+  /api/documents/{id}/complete:
+    post:
+      summary: Complete single-part or multipart document upload
+      tags:
+        - Documents
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadCompleteRequest'
+      responses:
+        '200':
+          description: Upload marked complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+
+  /api/documents/resolve-path:
+    post:
+      summary: Dynamic path creation and resolver (Finder utility)
+      tags:
+        - Folders
+      parameters:
+        - in: query
+          name: relativePath
+          required: true
+          schema:
+            type: string
+          description: Path hierarchy like "SubfolderA/SubfolderB"
+        - in: query
+          name: parentFolderId
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Initial directory ID
+      responses:
+        '200':
+          description: Path resolved and folders created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderResponse'
+        '403':
+          description: Insufficient permissions on the parent folder
+
+  /api/documents/tree:
+    get:
+      summary: Get the complete accessible folder and document tree
+      tags:
+        - File Explorer
+      responses:
+        '200':
+          description: Entire accessible tree view
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileTreeViewResponse'
+
+  /api/documents/categories:
+    get:
+      summary: List all predefined document category options
+      tags:
+        - File Explorer
+      responses:
+        '200':
+          description: Document category descriptors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryDetail'
+
+  /api/documents/{id}/presigned-url:
+    get:
+      summary: Get an AWS S3 pre-signed download URL for a document
+      tags:
+        - Documents
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Pre-signed URL generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+        '403':
+          description: Insufficient permissions
+
+  /api/documents/download/{id}:
+    get:
+      summary: Direct document download link (302 Redirect to pre-signed S3 URL)
+      tags:
+        - Documents
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '302':
+          description: Redirecting to S3 pre-signed download URL
+
+  /api/documents/view/{id}:
+    get:
+      summary: Direct inline document preview link (302 Redirect to pre-signed S3 URL)
+      tags:
+        - Documents
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '302':
+          description: Redirecting to S3 pre-signed preview URL
+
+  /api/documents/{id}:
+    delete:
+      summary: Delete a document
+      tags:
+        - Documents
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Document deleted successfully
+        '403':
+          description: Insufficient permissions
+
+  /api/documents/folders/{id}:
+    delete:
+      summary: Delete a folder and recursively all its contents
+      tags:
+        - Folders
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Folder and all contents deleted successfully
+        '403':
+          description: Insufficient permissions
+
+  /api/documents/folders/download-zip/{id}:
+    get:
+      summary: Download all folder contents zipped
+      tags:
+        - Folders
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: ZIP file binary stream containing the folder contents
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        '403':
+          description: Insufficient permissions
+
+  /api/documents/search:
+    get:
+      summary: Paginated search and filtering of documents
+      tags:
+        - File Explorer
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+          description: Case-insensitive search keyword
+        - in: query
+          name: category
+          required: false
+          schema:
+            type: string
+          description: Document category enum string
+        - in: query
+          name: favorite
+          required: false
+          schema:
+            type: boolean
+          description: Filter for starred/favorite documents only
+        - in: query
+          name: tag
+          required: false
+          schema:
+            type: string
+          description: Filter by document tag
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Page index (0-based)
+        - in: query
+          name: size
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Items per page
+      responses:
+        '200':
+          description: Paginated documents list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentResponse'
+                  totalPages:
+                    type: integer
+                  totalElements:
+                    type: integer
+
+  /api/documents/{id}/favorite:
+    put:
+      summary: Toggle favorite/starred flag for a document
+      tags:
+        - Documents
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Starred status toggled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+
+  /api/documents/{id}/tags:
+    put:
+      summary: Update tags string on a document
+      tags:
+        - Documents
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: string
+              example: "work, invoice, important"
+      responses:
+        '200':
+          description: Tags updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+
+  /api/documents/move/{id}:
+    put:
+      summary: Move a document to a new folder or the root directory
+      tags:
+        - Documents
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the document to move
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveDocumentRequest'
+      responses:
+        '200':
+          description: Document moved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '403':
+          description: Insufficient permissions on document or destination folder
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        firstName:
+          type: string
+        lastName:
+          type: string
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    ForgotPasswordRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+
+    ResetPasswordRequest:
+      type: object
+      required:
+        - token
+        - newPassword
+      properties:
+        token:
+          type: string
+        newPassword:
+          type: string
+          minLength: 6
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - oldPassword
+        - newPassword
+      properties:
+        oldPassword:
+          type: string
+        newPassword:
+          type: string
+          minLength: 6
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        emailVerified:
+          type: boolean
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserResponse'
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+
+    FolderInviteRequest:
+      type: object
+      required:
+        - email
+        - role
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [ADMIN, EDITOR, VIEWER]
+
+    UpdatePermissionRequest:
+      type: object
+      required:
+        - role
+      properties:
+        role:
+          type: string
+          enum: [ADMIN, EDITOR, VIEWER]
+
+    MoveFolderRequest:
+      type: object
+      properties:
+        parentFolderId:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of parent folder, or null to move to root directory.
+
+    MoveDocumentRequest:
+      type: object
+      properties:
+        folderId:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the folder, or null to move to root directory.
+
+    FolderResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+
+    FolderPermissionResponse:
+      type: object
+      properties:
+        permissionId:
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/UserResponse'
+        role:
+          type: string
+        inviteStatus:
+          type: string
+
+    PendingInviteResponse:
+      type: object
+      properties:
+        inviteId:
+          type: string
+          format: uuid
+        folderId:
+          type: string
+          format: uuid
+        folderName:
+          type: string
+        invitedBy:
+          type: string
+        role:
+          type: string
+
+    UploadInitiateRequest:
+      type: object
+      required:
+        - name
+        - size
+        - contentType
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+        folderId:
+          type: string
+          format: uuid
+          nullable: true
+        category:
+          type: string
+          nullable: true
+
+    UploadInitiateResponse:
+      type: object
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        uploadId:
+          type: string
+          nullable: true
+        urls:
+          type: array
+          items:
+            type: string
+            format: uri
+        chunkSize:
+          type: integer
+
+    UploadCompleteRequest:
+      type: object
+      properties:
+        uploadId:
+          type: string
+          nullable: true
+        parts:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartDTO'
+
+    PartDTO:
+      type: object
+      properties:
+        partNumber:
+          type: integer
+        eTag:
+          type: string
+          nullable: true
+
+    DocumentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+        status:
+          type: string
+        folderId:
+          type: string
+          format: uuid
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        favorite:
+          type: boolean
+        tags:
+          type: string
+
+    FileTreeViewResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [FOLDER, FILE]
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileTreeViewResponse'
+        favorite:
+          type: boolean
+          nullable: true
+        tags:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        role:
+          type: string
+          nullable: true
+        visibility:
+          type: string
+          nullable: true
+
+    CategoryDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+
+    PartResponse:
+      type: object
+      properties:
+        partNumber:
+          type: integer
+        eTag:
+          type: string

@@ -14,11 +14,9 @@ import com.docintel.modules.folder.domain.Folder;
 import com.docintel.modules.folder.domain.FolderPermission;
 import com.docintel.modules.folder.domain.FolderRepository;
 import com.docintel.modules.folder.domain.enums.FolderInviteStatus;
-import com.docintel.modules.folder.domain.enums.FolderVisibility;
 import com.docintel.shared.auth.CurrentUserProvider;
 import com.docintel.shared.contracts.FileStorage;
 import com.docintel.modules.user.domain.User;
-import com.docintel.shared.dto.TreeViewType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -41,9 +39,7 @@ import java.util.zip.ZipOutputStream;
 
 import com.docintel.modules.folder.domain.FolderPermissionRepository;
 import com.docintel.modules.folder.domain.enums.FolderRole;
-import com.docintel.modules.folder.infrastructure.security.FolderSecurityEvaluator;
-
-import static com.docintel.modules.document.mapper.DocumentMapper.mapToDocumentDTO;
+import com.docintel.shared.folder.security.FolderSecurityEvaluator;
 
 @Service
 @RequiredArgsConstructor
@@ -110,7 +106,7 @@ public class DocumentService {
         }
 
         Document saved = documentRepository.save(document);
-        DocumentResponseDTO dto = mapToDocumentDTO(saved);
+        DocumentResponseDTO dto = new DocumentResponseDTO(saved);
 
         return new UploadInitiateResponseDTO(dto, isMultipart, uploadUrl, uploadId, uploadUrls, partSize);
     }
@@ -123,7 +119,7 @@ public class DocumentService {
         Document document = getDocument(documentId);
 
         if (document.getStatus() == DocumentStatus.UPLOADED) {
-            return mapToDocumentDTO(document);
+            return new DocumentResponseDTO(document);
         }
 
         if (document.getUploadId() != null) {
@@ -136,7 +132,7 @@ public class DocumentService {
 
         document.setStatus(DocumentStatus.UPLOADED);
         Document saved = documentRepository.save(document);
-        return mapToDocumentDTO(saved);
+        return new DocumentResponseDTO(saved);
     }
 
     @Transactional(readOnly = true)

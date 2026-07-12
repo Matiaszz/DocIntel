@@ -17,7 +17,7 @@ import com.docintel.modules.folder.domain.FolderRepository;
 import com.docintel.shared.auth.CurrentUserProvider;
 import com.docintel.shared.contracts.FileStorage;
 import com.docintel.modules.folder.domain.enums.FolderRole;
-import com.docintel.modules.folder.infrastructure.security.FolderSecurityEvaluator;
+import com.docintel.shared.folder.security.FolderSecurityEvaluator;
 import com.docintel.modules.user.domain.User;
 import com.docintel.shared.dto.TreeViewType;
 import org.junit.jupiter.api.Test;
@@ -580,7 +580,7 @@ public class DocumentServiceTest {
             documentService.moveDocument(doc.getId(), destFolderId);
         });
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
-        assertEquals("Folder not found or access denied.", ex.getReason());
+        assertEquals("Access denied.", ex.getReason());
         verify(documentRepository, never()).save(any(Document.class));
     }
 }

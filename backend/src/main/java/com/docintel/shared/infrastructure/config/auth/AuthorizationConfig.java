@@ -34,7 +34,11 @@ public class AuthorizationConfig {
                                 "/actuator/**",
                                 "/health",
                                 "/auth/**",
-                                "/public/**"
+                                "/public/**",
+                                "/docs",
+                                "/docs/**",
+                                "/docs.html",
+                                "/openapi.yml"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

@@ -13,7 +13,7 @@ import com.docintel.modules.user.domain.User;
 import com.docintel.modules.user.domain.UserRepository;
 import com.docintel.shared.contracts.EmailSender;
 import lombok.RequiredArgsConstructor;
-import com.docintel.modules.folder.infrastructure.security.FolderSecurityEvaluator;
+import com.docintel.shared.folder.security.FolderSecurityEvaluator;
 import com.docintel.shared.auth.CurrentUserProvider;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
