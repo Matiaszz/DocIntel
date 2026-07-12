@@ -701,4 +701,143 @@ public class FolderServiceTest {
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
         assertEquals("Only folder ADMINs can manage permissions", ex.getReason());
     }
+
+    @Test
+    void shouldMoveFolderToAnotherFolderSuccessfully() {
+        // Arrange
+        UUID folderId = UUID.randomUUID();
+        UUID destId = UUID.randomUUID();
+
+        Folder folder = new Folder();
+        folder.setId(folderId);
+        folder.setName("Source");
+
+        Folder destFolder = new Folder();
+        destFolder.setId(destId);
+        destFolder.setName("Destination");
+
+        when(folderRepository.findById(folderId)).thenReturn(Optional.of(folder));
+        when(folderSecurity.hasPermission(folderId, FolderRole.EDITOR)).thenReturn(true);
+        when(folderSecurity.hasPermission(destId, FolderRole.EDITOR)).thenReturn(true);
+        when(folderRepository.findById(destId)).thenReturn(Optional.of(destFolder));
+        when(folderRepository.save(any(Folder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        Folder result = folderService.moveFolder(folderId, destId);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(destFolder, result.getParent());
+        verify(folderRepository).save(folder);
+    }
+
+    @Test
+    void shouldMoveFolderToRootSuccessfully() {
+        // Arrange
+        UUID folderId = UUID.randomUUID();
+
+        Folder folder = new Folder();
+        folder.setId(folderId);
+        folder.setName("Source");
+        folder.setParent(new Folder());
+
+        when(folderRepository.findById(folderId)).thenReturn(Optional.of(folder));
+        when(folderSecurity.hasPermission(folderId, FolderRole.EDITOR)).thenReturn(true);
+        when(folderRepository.save(any(Folder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        Folder result = folderService.moveFolder(folderId, null);
+
+        // Assert
+        assertNotNull(result);
+        assertNull(result.getParent());
+        verify(folderRepository).save(folder);
+    }
+
+    @Test
+    void shouldThrowForbiddenWhenUserHasNoPermissionOnFolderToMove() {
+        // Arrange
+        UUID folderId = UUID.randomUUID();
+        Folder folder = new Folder();
+        folder.setId(folderId);
+
+        when(folderRepository.findById(folderId)).thenReturn(Optional.of(folder));
+        when(folderSecurity.hasPermission(folderId, FolderRole.EDITOR)).thenReturn(false);
+
+        // Act & Assert
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            folderService.moveFolder(folderId, UUID.randomUUID());
+        });
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals("You do not have permission to modify this folder.", ex.getReason());
+    }
+
+    @Test
+    void shouldThrowForbiddenWhenUserHasNoPermissionOnDestinationFolder() {
+        // Arrange
+        UUID folderId = UUID.randomUUID();
+        UUID destId = UUID.randomUUID();
+        Folder folder = new Folder();
+        folder.setId(folderId);
+
+        when(folderRepository.findById(folderId)).thenReturn(Optional.of(folder));
+        when(folderSecurity.hasPermission(folderId, FolderRole.EDITOR)).thenReturn(true);
+        when(folderSecurity.hasPermission(destId, FolderRole.EDITOR)).thenReturn(false);
+
+        // Act & Assert
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            folderService.moveFolder(folderId, destId);
+        });
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals("You do not have permission to modify the destination folder.", ex.getReason());
+    }
+
+    @Test
+    void shouldThrowBadRequestWhenMovingFolderIntoItself() {
+        // Arrange
+        UUID folderId = UUID.randomUUID();
+        Folder folder = new Folder();
+        folder.setId(folderId);
+
+        when(folderRepository.findById(folderId)).thenReturn(Optional.of(folder));
+        when(folderSecurity.hasPermission(folderId, FolderRole.EDITOR)).thenReturn(true);
+
+        // Act & Assert
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            folderService.moveFolder(folderId, folderId);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("Cannot move a folder into itself.", ex.getReason());
+    }
+
+    @Test
+    void shouldThrowBadRequestWhenMovingFolderIntoItsSubfolder() {
+        // Arrange
+        UUID folderId = UUID.randomUUID();
+        UUID subId = UUID.randomUUID();
+        UUID subSubId = UUID.randomUUID();
+
+        Folder folder = new Folder();
+        folder.setId(folderId);
+
+        Folder subFolder = new Folder();
+        subFolder.setId(subId);
+        subFolder.setParent(folder);
+
+        Folder subSubFolder = new Folder();
+        subSubFolder.setId(subSubId);
+        subSubFolder.setParent(subFolder);
+
+        when(folderRepository.findById(folderId)).thenReturn(Optional.of(folder));
+        when(folderSecurity.hasPermission(folderId, FolderRole.EDITOR)).thenReturn(true);
+        when(folderSecurity.hasPermission(subSubId, FolderRole.EDITOR)).thenReturn(true);
+        when(folderRepository.findById(subSubId)).thenReturn(Optional.of(subSubFolder));
+
+        // Act & Assert
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            folderService.moveFolder(folderId, subSubId);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("Cannot move a folder into one of its subfolders.", ex.getReason());
+    }
 }

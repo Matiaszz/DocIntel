@@ -61,21 +61,26 @@ public class FolderService {
         String cleanedPath = relativePath.replaceAll("^/+", "").replaceAll("/+$", "");
         String[] parts = cleanedPath.split("/");
 
+        int folderCount = isFile ? parts.length - 1 : parts.length;
+
+        // Validate path segments early to prevent partial directory creation or unnecessary setup
+        for (int i = 0; i < folderCount; i++) {
+            if (parts[i].equals(".") || parts[i].equals("..")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid path segment.");
+            }
+        }
+
         Folder currentParent = null;
         if (parentFolderId != null) {
             currentParent = folderRepository.findById(parentFolderId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parent folder not found"));
         }
 
-        int folderCount = isFile ? parts.length - 1 : parts.length;
         User currentUser = userProvider.getCurrentUser();
 
         for (int i = 0; i < folderCount; i++) {
             String folderName = HtmlUtils.htmlEscape(parts[i]);
             if (folderName.trim().isEmpty()) continue;
-            if (parts[i].equals(".") || parts[i].equals("..")) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid path segment.");
-            }
 
             Optional<Folder> existingFolder;
             if (currentParent == null) {
@@ -92,7 +97,7 @@ public class FolderService {
                 currentParent = folderRepository.save(newFolder);
 
                 // Admin by default when created
-                FolderPermission permission = FolderPermission.create(newFolder);
+                FolderPermission permission = FolderPermission.create(currentParent);
                 permissionRepository.save(permission);
             }
         }
@@ -306,4 +311,40 @@ public class FolderService {
         return list;
     }
 
+    @Transactional
+    public Folder moveFolder(UUID folderId, UUID parentFolderId) {
+        Folder folder = folderRepository.findById(folderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Folder to move not found."));
+
+        if (!folderSecurity.hasPermission(folderId, FolderRole.EDITOR)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to modify this folder.");
+        }
+
+        if (folderId.equals(parentFolderId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot move a folder into itself.");
+        }
+
+        Folder destinationFolder = null;
+        if (parentFolderId != null) {
+            if (!folderSecurity.hasPermission(parentFolderId, FolderRole.EDITOR)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to modify the destination folder.");
+            }
+            destinationFolder = folderRepository.findById(parentFolderId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Destination folder not found."));
+
+            // Check for cycles: destination folder cannot be a descendant of the folder being moved
+            Folder current = destinationFolder;
+            while (current != null) {
+                if (current.getId().equals(folderId)) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot move a folder into one of its subfolders.");
+                }
+                current = current.getParent();
+            }
+        }
+
+        folder.setParent(destinationFolder);
+        return folderRepository.save(folder);
+    }
+
 }
+

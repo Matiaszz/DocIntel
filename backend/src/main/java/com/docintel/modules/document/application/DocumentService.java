@@ -13,6 +13,7 @@ import com.docintel.modules.folder.application.FolderService;
 import com.docintel.modules.folder.domain.Folder;
 import com.docintel.modules.folder.domain.FolderPermission;
 import com.docintel.modules.folder.domain.FolderRepository;
+import com.docintel.modules.folder.domain.enums.FolderInviteStatus;
 import com.docintel.modules.folder.domain.enums.FolderVisibility;
 import com.docintel.shared.auth.CurrentUserProvider;
 import com.docintel.shared.contracts.FileStorage;
@@ -175,7 +176,7 @@ public class DocumentService {
                 .toList();
 
         // Fetch all accepted permissions for the current user to resolve roles
-        List<FolderPermission> userPermissions = folderPermissionRepository.findByUserIdAndInviteStatus(userId, com.docintel.modules.folder.domain.enums.FolderInviteStatus.ACCEPTED);
+        List<FolderPermission> userPermissions = folderPermissionRepository.findByUserIdAndInviteStatus(userId, FolderInviteStatus.ACCEPTED);
         Map<UUID, FolderRole> roleByFolderId = userPermissions.stream()
                 .collect(Collectors.toMap(fp -> fp.getFolder().getId(), FolderPermission::getRole, (r1, r2) -> r1));
 
@@ -240,7 +241,7 @@ public class DocumentService {
         for (Document doc : docs) {
             children.add(new FileTreeViewResponseDTO(
                     doc,
-                    children,
+                    List.of(),
                     computedRole));
         }
 
@@ -368,6 +369,21 @@ public class DocumentService {
     public Document updateTags(UUID documentId, String tags) {
         Document document = getDocument(documentId);
         document.setTags(tags != null ? tags.trim() : "");
+        return documentRepository.save(document);
+    }
+
+    @Transactional
+    public Document moveDocument(UUID documentId, UUID folderId) {
+        Document document = getDocument(documentId);
+        Folder folder = null;
+        if (folderId != null) {
+            folder = folderSecurity.getAuthorizedFolder(folderId, FolderRole.EDITOR);
+            if (folder == null) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Folder not found or access denied.");
+            }
+        }
+
+        document.setFolder(folder);
         return documentRepository.save(document);
     }
 }

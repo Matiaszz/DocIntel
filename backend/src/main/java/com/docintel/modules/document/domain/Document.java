@@ -8,6 +8,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import org.springframework.data.domain.Persistable;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 
@@ -64,6 +66,7 @@ public class Document implements Persistable<UUID> {
     void markNotNew() {
         this.isNew = false;
     }
+
 
     public static Document create(
             String fileName,

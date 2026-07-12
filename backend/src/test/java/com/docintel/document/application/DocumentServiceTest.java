@@ -19,6 +19,7 @@ import com.docintel.shared.contracts.FileStorage;
 import com.docintel.modules.folder.domain.enums.FolderRole;
 import com.docintel.modules.folder.infrastructure.security.FolderSecurityEvaluator;
 import com.docintel.modules.user.domain.User;
+import com.docintel.shared.dto.TreeViewType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -219,7 +220,7 @@ public class DocumentServiceTest {
         assertNotNull(result);
         assertEquals(2, result.size()); // Folder A and Doc D at root level
 
-        FileTreeViewResponseDTO rootFolderNode = result.stream().filter(n -> n.type().equals("FOLDER")).findFirst().orElseThrow();
+        FileTreeViewResponseDTO rootFolderNode = result.stream().filter(n -> n.type().equals(TreeViewType.FOLDER)).findFirst().orElseThrow();
         assertEquals("Folder A", rootFolderNode.name());
         assertEquals(1, rootFolderNode.children().size()); // Folder B is child of Folder A
 
@@ -230,7 +231,7 @@ public class DocumentServiceTest {
         FileTreeViewResponseDTO docCNode = subFolderNode.children().get(0);
         assertEquals("Doc C.txt", docCNode.name());
 
-        FileTreeViewResponseDTO docDNode = result.stream().filter(n -> n.type().equals("FILE")).findFirst().orElseThrow();
+        FileTreeViewResponseDTO docDNode = result.stream().filter(n -> n.type().equals(TreeViewType.FILE)).findFirst().orElseThrow();
         assertEquals("Doc D.txt", docDNode.name());
     }
 
@@ -506,4 +507,81 @@ public class DocumentServiceTest {
             assertNull(zis.getNextEntry());
         }
     }
+
+    @Test
+    void shouldMoveDocumentToFolderSuccessfully() {
+        // Arrange
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        when(currentUserProvider.getCurrentUser()).thenReturn(user);
+
+        Document doc = new Document();
+        doc.setId(UUID.randomUUID());
+        doc.setOwner(user);
+        when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
+
+        UUID destFolderId = UUID.randomUUID();
+        Folder destFolder = new Folder();
+        destFolder.setId(destFolderId);
+        when(folderSecurity.getAuthorizedFolder(destFolderId, FolderRole.EDITOR)).thenReturn(destFolder);
+        when(documentRepository.save(any(Document.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        Document result = documentService.moveDocument(doc.getId(), destFolderId);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(destFolder, result.getFolder());
+        verify(documentRepository).save(doc);
+    }
+
+    @Test
+    void shouldMoveDocumentToRootSuccessfully() {
+        // Arrange
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        when(currentUserProvider.getCurrentUser()).thenReturn(user);
+
+        Document doc = new Document();
+        doc.setId(UUID.randomUUID());
+        doc.setOwner(user);
+        Folder originalFolder = new Folder();
+        originalFolder.setId(UUID.randomUUID());
+        doc.setFolder(originalFolder);
+        when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
+        when(documentRepository.save(any(Document.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        Document result = documentService.moveDocument(doc.getId(), null);
+
+        // Assert
+        assertNotNull(result);
+        assertNull(result.getFolder());
+        verify(documentRepository).save(doc);
+    }
+
+    @Test
+    void shouldThrowForbiddenWhenUserHasNoPermissionOnDestinationFolder() {
+        // Arrange
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        when(currentUserProvider.getCurrentUser()).thenReturn(user);
+
+        Document doc = new Document();
+        doc.setId(UUID.randomUUID());
+        doc.setOwner(user);
+        when(documentRepository.findById(doc.getId())).thenReturn(Optional.of(doc));
+
+        UUID destFolderId = UUID.randomUUID();
+        when(folderSecurity.getAuthorizedFolder(destFolderId, FolderRole.EDITOR)).thenReturn(null);
+
+        // Act & Assert
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            documentService.moveDocument(doc.getId(), destFolderId);
+        });
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals("Folder not found or access denied.", ex.getReason());
+        verify(documentRepository, never()).save(any(Document.class));
+    }
 }
+

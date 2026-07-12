@@ -1,11 +1,14 @@
 package com.docintel.modules.folder.presentation;
 
 import com.docintel.modules.folder.application.FolderService;
+import com.docintel.modules.folder.domain.Folder;
 import com.docintel.modules.folder.domain.FolderPermission;
 import com.docintel.modules.folder.presentation.dto.request.FolderInviteRequestDTO;
 import com.docintel.modules.folder.presentation.dto.request.UpdatePermissionRequestDTO;
+import com.docintel.modules.folder.presentation.dto.request.MoveFolderRequestDTO;
 import com.docintel.modules.folder.presentation.dto.response.FolderPermissionResponseDTO;
 import com.docintel.modules.folder.presentation.dto.response.PendingInviteResponseDTO;
+import com.docintel.modules.document.presentation.dto.response.FolderResponseDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -90,5 +93,18 @@ public class FolderController {
     ) {
         folderService.deleteFolderPermission(id, permissionId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/move/{id}")
+    public ResponseEntity<FolderResponseDTO> moveFolder(
+            @PathVariable UUID id,
+            @RequestBody MoveFolderRequestDTO request
+    ) {
+        Folder folder = folderService.moveFolder(id, request.parentFolderId());
+        return ResponseEntity.ok(new FolderResponseDTO(
+                folder.getId(),
+                folder.getName(),
+                folder.getParent() != null ? folder.getParent().getId() : null
+        ));
     }
 }

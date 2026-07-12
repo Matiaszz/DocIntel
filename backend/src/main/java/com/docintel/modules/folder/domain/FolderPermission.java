@@ -46,7 +46,7 @@ public class FolderPermission {
         }
 
         this.role = role;
-        this.setInviteStatus(FolderInviteStatus.PENDING);
+        this.inviteStatus = FolderInviteStatus.PENDING;
     }
 
     public void accept(UUID currentUserId) {
@@ -58,7 +58,7 @@ public class FolderPermission {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invitation is not pending");
         }
 
-        this.setInviteStatus(FolderInviteStatus.ACCEPTED);
+        this.inviteStatus = FolderInviteStatus.ACCEPTED;
     }
 
 
@@ -83,7 +83,6 @@ public class FolderPermission {
         this.user = folder.getOwner();
         this.role = FolderRole.ADMIN;
         this.inviteStatus = FolderInviteStatus.ACCEPTED;
-
     }
 
 }

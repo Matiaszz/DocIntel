@@ -9,10 +9,14 @@ import {
   CheckCircle2,
   Download,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  Folder,
+  ChevronRight
 } from 'lucide-react';
 import { fetchClient } from '../../lib/api';
 import { useCategories } from '../../hooks/useCategories';
+import { cn } from '../../lib/utils';
+import Button from '../ui/Button';
 
 interface MockDocument {
   id: string;
@@ -183,14 +187,14 @@ export default function DocumentAnalysis() {
   };
 
   return (
-    <div className="lg:col-span-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm min-h-[420px] flex flex-col justify-between transition-all duration-300">
+    <div className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-6 shadow-sm min-h-[460px] flex flex-col justify-between transition-all duration-300">
       
       {/* 1. SELECT EXISTING VIEW (Simplified Finder Explorer) */}
       {step === 'existing' && (
-        <div className="space-y-5 flex-1 flex flex-col justify-between">
+        <div className="space-y-6 flex-1 flex flex-col justify-between">
           <div className="space-y-4 w-full">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 dark:border-zinc-800/80 pb-3">
-              <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-zinc-200 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-100 dark:border-zinc-800/80 pb-3">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
                 {selectedFolderId && (
                   <button
                     onClick={() => {
@@ -201,22 +205,23 @@ export default function DocumentAnalysis() {
                         setSelectedFolderId(parent.id);
                       }
                     }}
-                    className="p-1 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer shrink-0"
+                    className="p-1.5 border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer shrink-0"
                     title="Voltar um nível"
                   >
-                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <ArrowLeft className="w-4 h-4" />
                   </button>
                 )}
                 
                 <div className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 select-none font-medium whitespace-nowrap">
                   {breadcrumbs.map((b, idx) => (
                     <React.Fragment key={idx}>
-                      {idx > 0 && <span className="text-zinc-300 dark:text-zinc-750">/</span>}
+                      {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-zinc-300 dark:text-zinc-700 shrink-0" />}
                       <button
                         onClick={() => setSelectedFolderId(b.id)}
-                        className={`hover:text-zinc-800 dark:hover:text-zinc-250 transition-colors cursor-pointer ${
-                          idx === breadcrumbs.length - 1 ? 'text-zinc-800 dark:text-zinc-200 font-semibold' : ''
-                        }`}
+                        className={cn(
+                          'hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer',
+                          idx === breadcrumbs.length - 1 ? 'text-zinc-900 dark:text-white font-semibold' : ''
+                        )}
                       >
                         {b.name}
                       </button>
@@ -224,34 +229,36 @@ export default function DocumentAnalysis() {
                   ))}
                 </div>
               </div>
-              <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest select-none">
-                Selecionar Arquivo para Análise
+              <h3 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest select-none sm:text-right shrink-0">
+                Análise de Arquivos
               </h3>
             </div>
 
             {error && (
-              <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 text-red-650 dark:text-red-400 text-xs rounded-xl flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div className="p-3.5 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 text-red-650 dark:text-red-400 text-xs rounded-xl flex items-center gap-2.5 animate-in fade-in duration-200">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-550 dark:text-red-400" />
                 <span>{error}</span>
               </div>
             )}
 
-            <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-zinc-50/20 dark:bg-zinc-950/10 min-h-[260px] max-h-[320px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-200 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-300">
+            <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-zinc-50/25 dark:bg-zinc-950/10 min-h-[280px] max-h-[350px] overflow-y-auto custom-scrollbar">
               {loadingTree ? (
-                <div className="flex flex-col items-center justify-center min-h-[250px] gap-2">
-                  <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-                  <span className="text-[11px] text-zinc-400">Carregando biblioteca...</span>
+                <div className="flex flex-col items-center justify-center min-h-[280px] gap-2">
+                  <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">Carregando biblioteca...</span>
                 </div>
               ) : activeChildren.length === 0 ? (
-                <div className="flex flex-col items-center justify-center min-h-[250px] text-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center text-zinc-400">
+                <div className="flex flex-col items-center justify-center min-h-[280px] text-center gap-3 p-6">
+                  <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800/50 flex items-center justify-center text-zinc-400 dark:text-zinc-550">
                     <FolderOpen className="w-5 h-5" />
                   </div>
-                  <p className="text-xs font-bold text-zinc-700 dark:text-zinc-400">Pasta Vazia</p>
-                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Nenhum arquivo encontrado neste diretório.</p>
+                  <div>
+                    <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200">Pasta Vazia</p>
+                    <p className="text-[10px] text-zinc-450 dark:text-zinc-500 mt-0.5">Nenhum arquivo encontrado neste diretório.</p>
+                  </div>
                 </div>
               ) : (
-                <div className="divide-y divide-zinc-200/50 dark:divide-zinc-800/50">
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
                   {[...activeChildren]
                     .sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'FOLDER' ? -1 : 1))
                     .map(node => {
@@ -266,35 +273,35 @@ export default function DocumentAnalysis() {
                               handleFileClick(node);
                             }
                           }}
-                          className="flex items-center justify-between p-3.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 cursor-pointer transition-colors select-none"
+                          className="flex items-center justify-between p-3.5 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 cursor-pointer transition-all duration-150 select-none group"
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex items-center gap-3 min-w-0">
                             {isFolder ? (
-                              <FolderOpen className="w-4 h-4 text-amber-500 shrink-0" />
+                              <Folder className="w-4 h-4 text-amber-500 fill-amber-500/10 shrink-0 group-hover:scale-105 transition-transform" />
                             ) : (
                               <FileText className="w-4 h-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
                             )}
-                            <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">
+                            <span className="text-xs font-medium text-zinc-700 dark:text-zinc-250 truncate group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
                               {node.name}
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2.5 shrink-0">
+                          <div className="flex items-center gap-3 shrink-0">
                             {isFolder ? (
-                              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
+                              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold bg-zinc-100 dark:bg-zinc-800/40 px-2 py-0.5 rounded-full">
                                 {node.children?.length || 0} itens
                               </span>
                             ) : (
-                              <>
+                              <div className="flex items-center gap-2">
                                 {node.analyzed && (
-                                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 font-bold shrink-0">
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-900/50 font-bold shrink-0">
                                     Analisado
                                   </span>
                                 )}
-                                <button className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100/50 dark:border-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-950 transition-colors cursor-pointer shrink-0">
+                                <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-950/80 transition-colors">
                                   Analisar
-                                </button>
-                              </>
+                                </span>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -314,22 +321,22 @@ export default function DocumentAnalysis() {
       {step === 'loading' && (
         <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-6 text-center animate-in fade-in duration-300">
           <div className="relative flex items-center justify-center">
-            <Loader2 className="w-16 h-16 text-indigo-600 animate-spin" />
-            <span className="absolute text-sm font-bold text-indigo-600 dark:text-indigo-400">{loadingProgress}%</span>
+            <Loader2 className="w-16 h-16 text-indigo-600 dark:text-indigo-400 animate-spin" />
+            <span className="absolute text-xs font-bold text-indigo-600 dark:text-indigo-400">{loadingProgress}%</span>
           </div>
 
           <div className="space-y-2 max-w-sm">
-            <h3 className="text-base font-bold text-zinc-900 dark:text-white animate-pulse">
+            <h3 className="text-base font-bold text-zinc-900 dark:text-white">
               Processando IA...
             </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 min-h-[32px] leading-relaxed transition-all">
+            <p className="text-xs text-zinc-555 dark:text-zinc-400 min-h-[36px] leading-relaxed transition-all duration-300">
               {loadingMessage}
             </p>
           </div>
 
           <div className="w-full max-w-xs bg-zinc-100 dark:bg-zinc-800 rounded-full h-1.5 overflow-hidden">
             <div
-              className="bg-indigo-600 h-1.5 rounded-full transition-all duration-300 ease-out"
+              className="bg-indigo-600 dark:bg-indigo-500 h-1.5 rounded-full transition-all duration-300 ease-out"
               style={{ width: `${loadingProgress}%` }}
             />
           </div>
@@ -338,60 +345,60 @@ export default function DocumentAnalysis() {
 
       {/* 3. ANALYSIS RESULT VIEW */}
       {step === 'result' && selectedDoc && (
-        <div className="space-y-5 flex-1 flex flex-col justify-between animate-in fade-in duration-300">
-          <div className="space-y-4">
+        <div className="space-y-6 flex-1 flex flex-col justify-between animate-in fade-in duration-300">
+          <div className="space-y-5">
             <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/80 pb-3">
               <button
                 onClick={() => setStep('existing')}
-                className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer font-medium"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Voltar
               </button>
-              <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full border border-emerald-100/50 dark:border-emerald-900">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-450 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-0.5 rounded-full border border-emerald-100/50 dark:border-emerald-900/50">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 Análise Concluída
               </span>
             </div>
 
             {/* Document Profile */}
-            <div className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800 rounded-xl">
-              <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+            <div className="flex items-center gap-3 p-4 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl">
+              <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                 <FileText className="w-5 h-5" />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h4 className="text-sm font-bold text-zinc-900 dark:text-white truncate">
                   {selectedDoc.name}
                 </h4>
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">
                   {selectedDoc.size} • {selectedDoc.type}
                 </p>
               </div>
             </div>
 
             {/* Summary Block */}
-            <div className="space-y-1.5">
-              <h5 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+            <div className="space-y-2">
+              <h5 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider select-none">
                 Resumo Executivo (IA)
               </h5>
-              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed bg-zinc-50/50 dark:bg-zinc-900/30 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/30">
+              <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed bg-zinc-50/50 dark:bg-zinc-900/20 p-3.5 rounded-xl border border-zinc-150/50 dark:border-zinc-800/40">
                 {selectedDoc.summary}
               </p>
             </div>
 
             {/* Extracted Metadata Grid */}
             <div className="space-y-2">
-              <h5 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+              <h5 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider select-none">
                 Metadados Extraídos
               </h5>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                 {selectedDoc.metadata.map((meta, idx) => (
                   <div
                     key={idx}
-                    className="flex justify-between p-2 bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-100 dark:border-zinc-800/30 rounded-lg"
+                    className="flex justify-between items-center p-3 bg-zinc-50 dark:bg-zinc-900/20 border border-zinc-150/40 dark:border-zinc-800/40 rounded-xl"
                   >
-                    <span className="text-zinc-400 dark:text-zinc-500">{meta.label}</span>
-                    <span className="font-semibold text-zinc-700 dark:text-zinc-200 text-right truncate pl-2 max-w-[65%]">
+                    <span className="text-zinc-450 dark:text-zinc-550 font-medium">{meta.label}</span>
+                    <span className="font-semibold text-zinc-800 dark:text-zinc-200 text-right truncate pl-2 max-w-[65%]">
                       {meta.value}
                     </span>
                   </div>
@@ -400,54 +407,52 @@ export default function DocumentAnalysis() {
             </div>
           </div>
 
-          <div className="flex gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800/80">
-            <button
+          <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800/80">
+            <Button
+              variant="outline"
               onClick={() => {
                 alert(`Exportando metadados de "${selectedDoc.name}" em formato JSON...`);
               }}
-              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 px-3 py-2.5 rounded-xl cursor-pointer transition-colors"
+              icon={<Download className="w-4 h-4" />}
             >
-              <Download className="w-3.5 h-3.5" />
               Exportar JSON
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setStep('existing')}
-              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 px-3 py-2.5 rounded-xl cursor-pointer transition-all shadow-sm shadow-indigo-950/15"
+              icon={<Sparkles className="w-4 h-4" />}
             >
-              <Sparkles className="w-3.5 h-3.5" />
               Analisar Outro
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {/* REANALYZE CONFIRMATION MODAL */}
       {showReanalyzeModal && pendingFile && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-zinc-950/40 dark:bg-zinc-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-full max-w-md rounded-2xl p-6 shadow-xl space-y-4 animate-in zoom-in-95 duration-150">
             <h3 className="text-base font-bold text-zinc-900 dark:text-white">Documento Já Analisado</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              O documento <span className="font-semibold text-zinc-700 dark:text-zinc-300">"{pendingFile.name}"</span> já passou por uma análise estruturada anteriormente.
+            <p className="text-xs text-zinc-555 dark:text-zinc-405 leading-relaxed">
+              O documento <span className="font-semibold text-zinc-800 dark:text-zinc-200">"{pendingFile.name}"</span> já passou por uma análise estruturada anteriormente.
               Tem certeza de que deseja reanalisá-lo? Isso executará uma nova consulta ao modelo de Inteligência Artificial.
             </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
+            <div className="flex justify-end gap-2.5 pt-2">
+              <Button
+                variant="outline"
                 onClick={() => {
                   setShowReanalyzeModal(false);
                   setPendingFile(null);
                 }}
-                className="px-4 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer"
+                className="w-auto px-4 py-2"
               >
                 Cancelar
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
                 onClick={confirmReanalysis}
-                className="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl cursor-pointer shadow-sm"
+                className="w-auto px-4 py-2"
               >
                 Sim, Reanalisar
-              </button>
+              </Button>
             </div>
           </div>
         </div>

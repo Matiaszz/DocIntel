@@ -8,8 +8,11 @@ import com.docintel.modules.folder.domain.enums.FolderInviteStatus;
 import com.docintel.modules.folder.domain.enums.FolderRole;
 import com.docintel.modules.folder.domain.enums.FolderVisibility;
 import com.docintel.shared.auth.CurrentUserProvider;
+import com.sun.net.httpserver.HttpsServer;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -35,12 +38,23 @@ public class FolderSecurityEvaluator {
         return checkPermissionRecursively(folderId, userId, requiredRole);
     }
 
+    public Folder getAuthorizedFolder(UUID folderId, FolderRole requiredRole) {
+        if (!hasPermission(folderId, requiredRole)){
+            return null;
+        }
+
+        Optional<Folder> folder = folderRepository.findById(folderId);
+        return folder.orElse(null);
+
+    }
+
     private boolean checkPermissionRecursively(UUID folderId, UUID userId, FolderRole requiredRole) {
         if (folderId == null) {
             return false;
         }
 
         Folder folder = folderRepository.findById(folderId).orElse(null);
+
         if (folder == null) {
             return false;
         }

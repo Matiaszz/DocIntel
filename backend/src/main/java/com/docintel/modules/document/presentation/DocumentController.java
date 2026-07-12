@@ -3,6 +3,7 @@ package com.docintel.modules.document.presentation;
 import com.docintel.modules.document.application.DocumentService;
 import com.docintel.modules.document.domain.Document;
 import com.docintel.modules.document.domain.enums.DocumentCategory;
+import com.docintel.modules.document.presentation.dto.request.MoveDocumentRequestDTO;
 import com.docintel.modules.document.presentation.dto.request.UploadCompleteRequestDTO;
 import com.docintel.modules.document.presentation.dto.request.UploadInitiateRequestDTO;
 import com.docintel.modules.document.presentation.dto.response.DocumentResponseDTO;
@@ -15,12 +16,15 @@ import com.docintel.modules.folder.domain.enums.FolderRole;
 import com.docintel.modules.folder.infrastructure.security.FolderSecurityEvaluator;
 import com.docintel.shared.auth.CurrentUserProvider;
 import com.docintel.modules.user.domain.User;
+import jakarta.validation.Valid;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -193,38 +197,14 @@ public class DocumentController {
         Page<Document> result = documentService.searchDocuments(
                 search, category, favorite, tag, page, size
         );
-        Page<DocumentResponseDTO> dtoPage = result.map(doc -> new DocumentResponseDTO(
-                doc.getId(),
-                doc.getName(),
-                doc.getS3Key(),
-                doc.getFolder() != null ? doc.getFolder().getId() : null,
-                doc.getOwner().getId(),
-                doc.getAgentAnalysis(),
-                doc.isAnalyzed(),
-                doc.getCategory(),
-                doc.isFavorite(),
-                doc.getTags(),
-                doc.getStatus()
-        ));
+        Page<DocumentResponseDTO> dtoPage = result.map(DocumentResponseDTO::new);
         return ResponseEntity.ok(dtoPage);
     }
 
     @PutMapping("/{id}/favorite")
     public ResponseEntity<DocumentResponseDTO> toggleFavorite(@PathVariable UUID id) {
         Document document = documentService.toggleFavorite(id);
-        return ResponseEntity.ok(new DocumentResponseDTO(
-                document.getId(),
-                document.getName(),
-                document.getS3Key(),
-                document.getFolder() != null ? document.getFolder().getId() : null,
-                document.getOwner().getId(),
-                document.getAgentAnalysis(),
-                document.isAnalyzed(),
-                document.getCategory(),
-                document.isFavorite(),
-                document.getTags(),
-                document.getStatus()
-        ));
+        return ResponseEntity.ok(new DocumentResponseDTO(document));
     }
 
     @PutMapping("/{id}/tags")
@@ -241,19 +221,17 @@ public class DocumentController {
         }
 
         Document document = documentService.updateTags(id, cleanTags);
-        return ResponseEntity.ok(new DocumentResponseDTO(
-                document.getId(),
-                document.getName(),
-                document.getS3Key(),
-                document.getFolder() != null ? document.getFolder().getId() : null,
-                document.getOwner().getId(),
-                document.getAgentAnalysis(),
-                document.isAnalyzed(),
-                document.getCategory(),
-                document.isFavorite(),
-                document.getTags(),
-                document.getStatus()
-        ));
+        return ResponseEntity.ok(new DocumentResponseDTO(document));
+    }
+
+    @PutMapping("/move/{id}")
+    public ResponseEntity<DocumentResponseDTO> moveDocument(
+
+            @PathVariable UUID id,
+            @Valid @RequestBody MoveDocumentRequestDTO request
+    ) {
+        Document document = documentService.moveDocument(id, request.folderId());
+        return ResponseEntity.ok(new DocumentResponseDTO(document));
     }
 }
 

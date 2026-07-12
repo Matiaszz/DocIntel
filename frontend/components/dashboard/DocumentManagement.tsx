@@ -649,7 +649,13 @@ export default function DocumentManagement() {
   const [dragActive, setDragActive] = useState(false);
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
 
+  // Drag and drop states for moving files and folders
+  const [draggedNode, setDraggedNode] = useState<TreeNode | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+  const [dragOverBreadcrumbId, setDragOverBreadcrumbId] = useState<string | null | undefined>(undefined);
+
   const [backendPaginatedFiles, setBackendPaginatedFiles] = useState<
+
     TreeNode[]
   >([]);
   const [backendTotalPages, setBackendTotalPages] = useState(1);
@@ -846,6 +852,30 @@ export default function DocumentManagement() {
   };
 
   const handlePreviewFile = async (node: TreeNode) => {
+    const ext = node.name.toLowerCase();
+
+    // Check if it is a common/small file format. If not, open warning modal immediately.
+    const isCommonOrSmall = (
+      ext.endsWith(".pdf") ||
+      ext.endsWith(".doc") ||
+      ext.endsWith(".docx") ||
+      ext.endsWith(".xls") ||
+      ext.endsWith(".xlsx") ||
+      ext.endsWith(".ppt") ||
+      ext.endsWith(".pptx") ||
+      ext.endsWith(".txt") ||
+      ext.endsWith(".csv") ||
+      ext.endsWith(".json") ||
+      /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(ext)
+    );
+
+    if (!isCommonOrSmall) {
+      setPreviewUrl("no-preview");
+      setPreviewFileName(node.name);
+      setPreviewFile(node);
+      return;
+    }
+
     try {
       setLoading(true);
       const presignedData = await fetchClient.internal.request<{ url: string }>(
@@ -853,7 +883,6 @@ export default function DocumentManagement() {
       );
 
       const blob = await downloadFromS3(presignedData.url, () => {});
-      const ext = node.name.toLowerCase();
       let mimeType = blob.type;
       if (ext.endsWith(".pdf")) {
         mimeType = "application/pdf";
@@ -883,7 +912,7 @@ export default function DocumentManagement() {
   };
 
   const closePreview = () => {
-    if (previewUrl) {
+    if (previewUrl && previewUrl !== "no-preview") {
       window.URL.revokeObjectURL(previewUrl);
     }
     setPreviewUrl(null);
@@ -891,6 +920,7 @@ export default function DocumentManagement() {
     setZoomScale(100);
     setIsEditingTags(false);
   };
+
 
   const handleToggleFavorite = async (node: TreeNode) => {
     try {
@@ -1051,6 +1081,110 @@ export default function DocumentManagement() {
       setLoading(false);
     }
   };
+
+  const handleMoveFolder = async (folderId: string, parentFolderId: string | null) => {
+    try {
+      setLoading(true);
+      await fetchClient.internal.request(`/api/folders/move/${folderId}`, {
+        method: "PUT",
+        body: { parentFolderId },
+      });
+      await fetchTree();
+    } catch (err: any) {
+      console.error(err);
+      setError(getFriendlyErrorMessage(err, "Falha ao mover a pasta."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMoveDocument = async (documentId: string, folderId: string | null) => {
+    try {
+      setLoading(true);
+      await fetchClient.internal.request(`/api/documents/move/${documentId}`, {
+        method: "PUT",
+        body: { folderId },
+      });
+      await fetchTree();
+    } catch (err: any) {
+      console.error(err);
+      setError(getFriendlyErrorMessage(err, "Falha ao mover o documento."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Drag and drop event handlers
+  const handleDragStart = (e: React.DragEvent, node: TreeNode) => {
+    setDraggedNode(node);
+    e.dataTransfer.setData("text/plain", node.id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnd = () => {
+    setDraggedNode(null);
+    setDragOverFolderId(null);
+    setDragOverBreadcrumbId(undefined);
+  };
+
+  const handleDragOverFolder = (e: React.DragEvent, node: TreeNode) => {
+    if (draggedNode && draggedNode.id !== node.id && node.type === "FOLDER") {
+      e.preventDefault();
+      setDragOverFolderId(node.id);
+    }
+  };
+
+  const handleDragLeaveFolder = () => {
+    setDragOverFolderId(null);
+  };
+
+  const handleDropOnFolder = async (e: React.DragEvent, targetNode: TreeNode) => {
+    e.preventDefault();
+    if (!draggedNode) return;
+    const nodeId = draggedNode.id;
+    const isFolder = draggedNode.type === "FOLDER";
+
+    setDraggedNode(null);
+    setDragOverFolderId(null);
+
+    if (targetNode.type !== "FOLDER" || nodeId === targetNode.id) return;
+
+    if (isFolder) {
+      await handleMoveFolder(nodeId, targetNode.id);
+    } else {
+      await handleMoveDocument(nodeId, targetNode.id);
+    }
+  };
+
+  const handleDragOverBreadcrumb = (e: React.DragEvent, breadcrumbId: string | null) => {
+    if (draggedNode) {
+      if (breadcrumbId !== selectedFolderId) {
+        e.preventDefault();
+        setDragOverBreadcrumbId(breadcrumbId);
+      }
+    }
+  };
+
+  const handleDragLeaveBreadcrumb = () => {
+    setDragOverBreadcrumbId(undefined);
+  };
+
+  const handleDropOnBreadcrumb = async (e: React.DragEvent, targetFolderId: string | null) => {
+    e.preventDefault();
+    if (!draggedNode) return;
+    const nodeId = draggedNode.id;
+    const isFolder = draggedNode.type === "FOLDER";
+
+    setDraggedNode(null);
+    setDragOverBreadcrumbId(undefined);
+
+    if (isFolder) {
+      await handleMoveFolder(nodeId, targetFolderId);
+    } else {
+      await handleMoveDocument(nodeId, targetFolderId);
+    }
+  };
+
 
   const fetchFolderPermissions = async (folderId: string) => {
     try {
@@ -1450,9 +1584,16 @@ export default function DocumentManagement() {
                       )}
                       <button
                         onClick={() => setSelectedFolderId(b.id)}
-                        className={`hover:text-zinc-800 dark:hover:text-zinc-250 transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        onDragOver={(e) => handleDragOverBreadcrumb(e, b.id)}
+                        onDragLeave={handleDragLeaveBreadcrumb}
+                        onDrop={(e) => handleDropOnBreadcrumb(e, b.id)}
+                        className={`hover:text-zinc-800 dark:hover:text-zinc-250 transition-all cursor-pointer flex items-center gap-1.5 ${
                           idx === breadcrumbs.length - 1
                             ? "text-zinc-800 dark:text-zinc-200 font-semibold"
+                            : ""
+                        } ${
+                          dragOverBreadcrumbId === b.id
+                            ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/20 px-1.5 py-0.5 rounded border border-dashed border-indigo-500 scale-105"
                             : ""
                         }`}
                       >
@@ -1583,6 +1724,12 @@ export default function DocumentManagement() {
                       return (
                         <div
                           key={node.id}
+                          draggable={true}
+                          onDragStart={(e) => handleDragStart(e, node)}
+                          onDragEnd={handleDragEnd}
+                          onDragOver={isFolder ? (e) => handleDragOverFolder(e, node) : undefined}
+                          onDragLeave={isFolder ? handleDragLeaveFolder : undefined}
+                          onDrop={isFolder ? (e) => handleDropOnFolder(e, node) : undefined}
                           onClick={() => {
                             if (isFolder) {
                               setSelectedFolderId(node.id);
@@ -1594,8 +1741,15 @@ export default function DocumentManagement() {
                             }
                           }}
                           onContextMenu={(e) => handleContextMenu(e, node)}
-                          className={`flex items-center justify-between p-3.5 text-xs hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40 transition-colors cursor-pointer select-none`}
+                          className={`flex items-center justify-between p-3.5 text-xs hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40 transition-all cursor-pointer select-none ${
+                            dragOverFolderId === node.id
+                              ? "bg-indigo-50/60 dark:bg-indigo-950/30 border border-dashed border-indigo-500 rounded-xl scale-[1.01]"
+                              : ""
+                          } ${
+                            draggedNode?.id === node.id ? "opacity-40" : ""
+                          }`}
                         >
+
                           <div className="flex items-center gap-3 min-w-0">
                             {isFolder ? (
                               <Folder className="w-4.5 h-4.5 text-amber-500 dark:text-amber-600 shrink-0" />
@@ -2696,6 +2850,21 @@ export default function DocumentManagement() {
                             ry="2"
                           />
                         </svg>
+                      ) : /\.(mp3|wav|ogg|m4a|aac)$/i.test(previewFileName) ? (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="w-6 h-6"
+                        >
+                          <path d="M9 18V5l12-2v13" />
+                          <circle cx="6" cy="18" r="3" />
+                          <circle cx="18" cy="16" r="3" />
+                        </svg>
                       ) : (
                         <File className="w-6 h-6" />
                       )}
@@ -2710,7 +2879,9 @@ export default function DocumentManagement() {
                       <p className="text-[10px] text-zinc-400 font-semibold">
                         {/\.(mp4|webm|ogg|mov|avi)$/i.test(previewFileName)
                           ? "Arquivo de Vídeo"
-                          : "Arquivo Binário / Outro"}
+                          : /\.(mp3|wav|ogg|m4a|aac)$/i.test(previewFileName)
+                            ? "Arquivo de Áudio"
+                            : "Arquivo Binário / Outro"}
                       </p>
                     </div>
                     <p className="text-[10px] text-zinc-400 px-4 leading-relaxed font-medium">
