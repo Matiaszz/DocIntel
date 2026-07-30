@@ -3,6 +3,7 @@
 > Status atual do desenvolvimento do DocIntel.
 
 Legenda:
+
 - ✅ Concluído
 - 🚧 Em desenvolvimento
 - ⏳ Planejado
@@ -12,6 +13,7 @@ Legenda:
 ## Sprint 1 — Fundação da API ✅
 
 ### Projeto
+
 - ✅ Estrutura modular (Clean Architecture)
 - ✅ Configuração do Spring Boot
 - ✅ PostgreSQL
@@ -21,6 +23,7 @@ Legenda:
 - ✅ Documentação Swagger/OpenAPI
 
 ### Autenticação
+
 - ✅ Cadastro de usuários
 - ✅ Login
 - ✅ JWT Access Token
@@ -33,31 +36,28 @@ Legenda:
 
 ---
 
-## Sprint 2 — Gestão de Usuários 🚧
+## Sprint 2 — Gestão de Usuários ✅
 
 ### Conta
+
 - ✅ Atualizar perfil
 - ✅ Alterar senha
 - ✅ Recuperação de senha por e-mail
 - ✅ Verificação de e-mail
 
-### Segurança
-- ⏳ Rate Limiting
-- ⏳ Auditoria
-- ⏳ Logs estruturados
-
 ---
 
-## Sprint 3 — Documentos 🚧
+## Sprint 3 — Documentos ✅
 
 ### Upload
+
 - ✅ Upload de arquivos
 - ✅ Download
 - ✅ Exclusão
 
 ---
 
-## Sprint 4 — Cloud Storage 🚧
+## Sprint 4 — Cloud Storage ✅
 
 - ✅ S3 Storage
 - ✅ Upload direto
@@ -65,79 +65,39 @@ Legenda:
 
 ---
 
-## Sprint 5 — Compartilhamento 🚧
+## Sprint 5 — Compartilhamento ✅
 
-- ⏳ Compartilhar pastas
-- ⏳ Links públicos
-- ⏳ Expiração de links
+- ✅ Compartilhar pastas
 - ✅ Permissões (Viewer/Editor/Admin)
 
 ---
 
-## Sprint 6 — Pesquisa e Organização ⏳
+## Sprint 6 — Pesquisa e Organização ✅
 
-- ⏳ Tags
-- ⏳ Favoritos
-- ⏳ Pesquisa textual
-- ⏳ Paginação
-- ⏳ Filtros
-
----
-
-## Sprint 7 — IA e OCR ⏳
-
-- ⏳ OCR
-- ⏳ Extração de informações
-- ⏳ Resumo por IA
-- ⏳ Chat com documentos
-
----
-
-## Sprint 8 — Escalabilidade ⏳
-
-- ⏳ Redis
-- ⏳ Cache
-- ⏳ RabbitMQ/Kafka
-- ⏳ Processamento assíncrono
-
----
-
-## Sprint 9 — Observabilidade ⏳
-
-- ⏳ Spring Actuator
-- ⏳ Prometheus
-- ⏳ Grafana
-- ⏳ OpenTelemetry
-- ⏳ Tracing
+- ✅ Tags
+- ✅ Favoritos
+- ✅ Pesquisa textual
+- ✅ Paginação
+- ✅ Filtros
 
 ---
 
 ## Sprint 10 — Testes e Deploy 🚧
 
 ### Testes
-- ✅ JUnit
-- ⏳ Testes de integração
 
-### DevOps
-- ✅ Docker Compose
-- ⏳ GitHub Actions
-- ⏳ Deploy em Cloud
-- ⏳ CI/CD
+- ✅ JUnit
 
 ---
 
 # 📈 Progresso Geral
 
-| Área | Status |
-|------|--------|
-| Arquitetura | ✅ |
-| Autenticação | ✅ |
-| Usuários | 🚧 |
-| Documentos | 🚧 |
-| Cloud | 🚧 |
-| Compartilhamento | 🚧 |
-| IA | ⏳ |
-| Escalabilidade | ⏳ |
-| Observabilidade | ⏳ |
-| Testes | 🚧 |
-| Deploy | ⏳ |
+| Área             | Status |
+| ---------------- | ------ |
+| Arquitetura      | ✅     |
+| Autenticação     | ✅     |
+| Usuários         | ✅     |
+| Documentos       | ✅     |
+| Cloud            | ✅     |
+| Compartilhamento | ✅     |
+| Testes           | ✅     |

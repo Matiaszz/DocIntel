@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DocIntel - Gestão Inteligente de Documentos",
-  description: "Organize, analise e extraia inteligência dos seus documentos com IA.",
+  title: "DocIntel - Gestão de Documentos",
+  description: "Organize e gerencie seus documentos com facilidade e segurança.",
 };
 
 export default function RootLayout({

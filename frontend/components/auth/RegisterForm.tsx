@@ -94,7 +94,7 @@ export default function RegisterForm({
           Crie sua conta
         </h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Comece a organizar e analisar seus documentos de forma inteligente
+          Comece a organizar e gerenciar seus documentos com facilidade
         </p>
       </div>
 

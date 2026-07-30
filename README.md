@@ -12,11 +12,8 @@ Mais do que implementar funcionalidades, o objetivo é demonstrar conhecimentos 
 - Desenvolvimento Backend com Spring Boot
 - Segurança de aplicações
 - Boas práticas de engenharia
-- Escalabilidade
 - Integração com serviços em nuvem
-- Observabilidade
 - Testes automatizados
-- CI/CD
 
 Cada funcionalidade é adicionada de forma incremental, seguindo uma evolução semelhante à de um produto utilizado em produção.
 
@@ -35,6 +32,11 @@ Cada funcionalidade é adicionada de forma incremental, seguindo uma evolução 
 - JWT
 - Maven
 
+### Frontend
+
+- Typescript
+- React
+
 ### Ferramentas
 
 - Docker
@@ -42,50 +44,10 @@ Cada funcionalidade é adicionada de forma incremental, seguindo uma evolução 
 - Git
 - GitHub
 
-### Planejado
+### Tecnologias cloud usadas
 
-- Redis
-- RabbitMQ
 - AWS S3
-- OCR
-- Inteligência Artificial
-- Prometheus
-- Grafana
-- OpenTelemetry
-- GitHub Actions
-
----
-
-## ✨ Funcionalidades
-
-### Implementadas
-
-- ✅ Cadastro de usuários
-- ✅ Login
-- ✅ Autenticação JWT
-- ✅ Refresh Token
-- ✅ Logout
-- ✅ Revogação de tokens
-- ✅ Cookies HttpOnly
-- ✅ Tratamento global de exceções
-- ✅ Documentação da API (Swagger)
-
-### Em desenvolvimento
-
-- 🚧 Gestão de usuários
-
-### Planejadas
-
-- 📄 Upload de documentos
-- ☁️ Armazenamento em nuvem
-- 🤖 IA para análise de documentos
-- 🔍 OCR
-- 👥 Compartilhamento de arquivos
-- 📊 Observabilidade
-- ⚡ Cache
-- 📨 Processamento assíncrono
-- 🧪 Testes automatizados
-- 🚀 CI/CD
+- AWS SES
 
 ---
 
@@ -99,13 +61,14 @@ O projeto é desenvolvido em etapas, simulando sprints de um ambiente profission
 
 ## 🎯 Objetivo
 
-Este projeto tem como finalidade consolidar conhecimentos em desenvolvimento backend e servir como portfólio, aplicando conceitos encontrados em sistemas utilizados em ambiente corporativo.
+Este projeto tem como finalidade consolidar conhecimentos em desenvolvimento e arquitetura backend, aprender um pouco sobre AWS e Cloud e servir como portfólio, aplicando conceitos encontrados em sistemas utilizados em ambiente corporativo.
 
 O foco não é apenas entregar funcionalidades, mas construir uma aplicação seguindo princípios de qualidade, organização e escalabilidade.
 
 ---
 
 ## Referências
+
 #### System Design do Google Drive: https://www.youtube.com/watch?v=qMPfjCH3qQU&t=1681s
 
 ## 📄 Licença

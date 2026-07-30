@@ -21,7 +21,7 @@ export default function WelcomeBanner({ user }: WelcomeBannerProps) {
           Olá, {user.firstName} {user.lastName}!
         </h1>
         <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed font-medium">
-          Bem-vindo de volta ao DocIntel. Escolha um dos módulos abaixo ou continue organizando seus documentos na biblioteca.
+          Bem-vindo de volta ao DocIntel. Gerencie e organize seus documentos com facilidade.
         </p>
       </div>
     </section>

@@ -60,7 +60,7 @@ export default function AuthPage() {
         {/* Content Slider/Features */}
         <div className="relative z-10 max-w-md space-y-6">
           <h1 className="text-4xl font-extrabold tracking-tight leading-tight">
-            Gerencie e analise seus documentos com facilidade
+            Gerencie seus documentos com facilidade
           </h1>
           <p className="text-lg text-zinc-300 leading-relaxed">
             Organize, filtre e encontre informações essenciais em seus

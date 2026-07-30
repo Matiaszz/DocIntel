@@ -1,6 +1,6 @@
 spring:
   application:
-    name: docIntel
+    name: DocIntel
 
   profiles:
     active: dev
@@ -19,8 +19,6 @@ cloud:
 
   email:
     provider: aws
-
-
 
   aws:
     region:
