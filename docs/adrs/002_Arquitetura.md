@@ -10,16 +10,9 @@ Aceito
 
 O DocIntel será um sistema para gerenciamento inteligente de documentos, com previsão de crescimento gradual em funcionalidades como:
 
-* Autenticação e autorização
-* Upload e armazenamento de documentos
-* OCR
-* Integração com IA
-* Compartilhamento de documentos
-* Auditoria
-* Notificações
-* Cache
-* Mensageria
-* Observabilidade
+- Autenticação e autorização
+- Upload e armazenamento de documentos
+- Compartilhamento de documentos
 
 Embora inicialmente seja desenvolvido por uma única pessoa, o projeto tem como objetivo seguir boas práticas utilizadas em sistemas profissionais, facilitando manutenção, testes e evolução ao longo do tempo.
 
@@ -61,31 +54,26 @@ src/main/java/com/docintel
 
 Dentro de cada módulo:
 
-* **presentation**
+- **presentation**
+  - Controllers REST
+  - DTOs de entrada e saída
+  - Mapeamento HTTP
 
-  * Controllers REST
-  * DTOs de entrada e saída
-  * Mapeamento HTTP
+- **application**
+  - Casos de uso
+  - Orquestração da lógica da aplicação
 
-* **application**
+- **domain**
+  - Entidades
+  - Value Objects
+  - Interfaces de repositório
+  - Regras de negócio
 
-  * Casos de uso
-  * Orquestração da lógica da aplicação
-
-* **domain**
-
-  * Entidades
-  * Value Objects
-  * Interfaces de repositório
-  * Regras de negócio
-
-* **infrastructure**
-
-  * Implementações JPA
-  * Segurança
-  * Integrações externas
-  * Mensageria
-  * Persistência
+- **infrastructure**
+  - Implementações JPA
+  - Segurança
+  - Integrações externas
+  - Persistência
 
 Os módulos deverão se comunicar preferencialmente através de interfaces e contratos bem definidos, evitando dependências diretas desnecessárias.
 
@@ -95,13 +83,13 @@ Os módulos deverão se comunicar preferencialmente através de interfaces e con
 
 Esta arquitetura foi escolhida porque:
 
-* mantém alta coesão entre classes relacionadas à mesma funcionalidade;
-* reduz o acoplamento entre módulos;
-* facilita manutenção conforme o número de funcionalidades aumenta;
-* melhora a navegação no código;
-* favorece testes unitários;
-* permite substituir implementações externas com menor impacto;
-* possibilita futura extração de módulos para microsserviços, caso necessário.
+- mantém alta coesão entre classes relacionadas à mesma funcionalidade;
+- reduz o acoplamento entre módulos;
+- facilita manutenção conforme o número de funcionalidades aumenta;
+- melhora a navegação no código;
+- favorece testes unitários;
+- permite substituir implementações externas com menor impacto;
+- possibilita futura extração de módulos para microsserviços, caso necessário.
 
 ---
 
@@ -111,14 +99,14 @@ Esta arquitetura foi escolhida porque:
 
 **Vantagens**
 
-* Simples de implementar.
-* Menor quantidade inicial de classes.
+- Simples de implementar.
+- Menor quantidade inicial de classes.
 
 **Desvantagens**
 
-* Escala pior em projetos grandes.
-* Pacotes de Service, Repository e DTO tendem a crescer excessivamente.
-* Forte acoplamento entre funcionalidades.
+- Escala pior em projetos grandes.
+- Pacotes de Service, Repository e DTO tendem a crescer excessivamente.
+- Forte acoplamento entre funcionalidades.
 
 ---
 
@@ -126,14 +114,14 @@ Esta arquitetura foi escolhida porque:
 
 **Vantagens**
 
-* Escalabilidade independente.
-* Isolamento completo entre domínios.
+- Escalabilidade independente.
+- Isolamento completo entre domínios.
 
 **Desvantagens**
 
-* Complexidade operacional elevada.
-* Necessidade de comunicação distribuída.
-* Infraestrutura significativamente mais complexa.
+- Complexidade operacional elevada.
+- Necessidade de comunicação distribuída.
+- Infraestrutura significativamente mais complexa.
 
 Para o estágio atual do projeto, os custos superam os benefícios.
 
@@ -143,17 +131,17 @@ Para o estágio atual do projeto, os custos superam os benefícios.
 
 ### Positivas
 
-* Organização baseada em funcionalidades.
-* Melhor legibilidade do projeto.
-* Evolução incremental da arquitetura.
-* Facilidade para adicionar novos módulos.
-* Menor impacto de mudanças em funcionalidades existentes.
+- Organização baseada em funcionalidades.
+- Melhor legibilidade do projeto.
+- Evolução incremental da arquitetura.
+- Facilidade para adicionar novos módulos.
+- Menor impacto de mudanças em funcionalidades existentes.
 
 ### Negativas
 
-* Maior número de pacotes e classes.
-* Curva de aprendizado ligeiramente superior.
-* Necessidade de disciplina para manter o isolamento entre módulos.
+- Maior número de pacotes e classes.
+- Curva de aprendizado ligeiramente superior.
+- Necessidade de disciplina para manter o isolamento entre módulos.
 
 ---
 
