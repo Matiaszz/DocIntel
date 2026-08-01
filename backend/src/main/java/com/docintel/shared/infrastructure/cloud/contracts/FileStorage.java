@@ -1,4 +1,4 @@
-package com.docintel.shared.contracts;
+package com.docintel.shared.infrastructure.cloud.contracts;
 
 import com.docintel.shared.dto.CompletedPartDTO;
 

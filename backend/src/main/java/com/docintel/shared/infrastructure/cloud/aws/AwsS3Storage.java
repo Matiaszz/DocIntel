@@ -1,7 +1,7 @@
 package com.docintel.shared.infrastructure.cloud.aws;
 
 import com.docintel.shared.dto.CompletedPartDTO;
-import com.docintel.shared.contracts.FileStorage;
+import com.docintel.shared.infrastructure.cloud.contracts.FileStorage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

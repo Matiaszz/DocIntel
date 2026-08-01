@@ -9,7 +9,7 @@ import com.docintel.modules.folder.domain.FolderPermissionRepository;
 import com.docintel.modules.folder.domain.FolderRepository;
 import com.docintel.modules.user.domain.User;
 import com.docintel.modules.user.domain.UserRepository;
-import com.docintel.shared.contracts.EmailSender;
+import com.docintel.shared.infrastructure.cloud.contracts.EmailSender;
 import com.docintel.shared.folder.security.FolderSecurityEvaluator;
 import com.docintel.shared.auth.CurrentUserProvider;
 import org.junit.jupiter.api.Test;

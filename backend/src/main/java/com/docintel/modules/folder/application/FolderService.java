@@ -11,7 +11,7 @@ import com.docintel.modules.folder.presentation.dto.response.FolderPermissionRes
 import com.docintel.modules.folder.presentation.dto.response.results.FolderPermissionResult;
 import com.docintel.modules.user.domain.User;
 import com.docintel.modules.user.domain.UserRepository;
-import com.docintel.shared.contracts.EmailSender;
+import com.docintel.shared.infrastructure.cloud.contracts.EmailSender;
 import lombok.RequiredArgsConstructor;
 import com.docintel.shared.folder.security.FolderSecurityEvaluator;
 import com.docintel.shared.auth.CurrentUserProvider;

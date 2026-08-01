@@ -15,7 +15,7 @@ import com.docintel.modules.folder.domain.FolderPermission;
 import com.docintel.modules.folder.domain.FolderRepository;
 import com.docintel.modules.folder.domain.enums.FolderInviteStatus;
 import com.docintel.shared.auth.CurrentUserProvider;
-import com.docintel.shared.contracts.FileStorage;
+import com.docintel.shared.infrastructure.cloud.contracts.FileStorage;
 import com.docintel.modules.user.domain.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

@@ -15,7 +15,7 @@ import com.docintel.modules.folder.domain.Folder;
 import com.docintel.modules.folder.domain.FolderPermissionRepository;
 import com.docintel.modules.folder.domain.FolderRepository;
 import com.docintel.shared.auth.CurrentUserProvider;
-import com.docintel.shared.contracts.FileStorage;
+import com.docintel.shared.infrastructure.cloud.contracts.FileStorage;
 import com.docintel.modules.folder.domain.enums.FolderRole;
 import com.docintel.shared.folder.security.FolderSecurityEvaluator;
 import com.docintel.modules.user.domain.User;
