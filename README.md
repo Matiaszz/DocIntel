@@ -28,7 +28,7 @@ Cada funcionalidade é adicionada de forma incremental, seguindo uma evolução 
 
 ---
 
-### 1️⃣ Clonar o Repositório
+### 1 | Clonar o Repositório
 
 ```bash
 git clone https://github.com/Matiaszz/DocIntel.git
@@ -37,7 +37,7 @@ cd DocIntel
 
 ---
 
-### 2️⃣ Backend (Spring Boot + PostgreSQL + Docker)
+### 2 | Backend (Spring Boot + PostgreSQL + Docker)
 
 Navegue até a pasta do backend:
 ```bash
@@ -69,7 +69,7 @@ O servidor backend estará rodando em `http://localhost:8080`.
 
 ---
 
-### 3️⃣ Frontend (Next.js / React)
+### 3 | Frontend (Next.js / React)
 
 Navegue até a pasta do frontend (a partir da raiz do projeto):
 ```bash
