@@ -19,10 +19,86 @@ Cada funcionalidade é adicionada de forma incremental, seguindo uma evolução 
 
 ---
 
+## 🛠️ Como Rodar o Projeto
+
+### Pré-requisitos
+- [Git](https://git-scm.com/)
+- [Docker](https://www.docker.com/) e Docker Compose
+- [Node.js](https://nodejs.org/) (v18+)
+
+---
+
+### 1️⃣ Clonar o Repositório
+
+```bash
+git clone https://github.com/Matiaszz/DocIntel.git
+cd DocIntel
+```
+
+---
+
+### 2️⃣ Backend (Spring Boot + PostgreSQL + Docker)
+
+Navegue até a pasta do backend:
+```bash
+cd backend
+```
+
+1. **Criar o arquivo `.env`**:
+   Crie o arquivo `.env` baseado no exemplo fornecido (`.env-example`):
+   - **Linux / macOS**:
+     ```bash
+     cp .env-example .env
+     ```
+   - **Windows (cmd)**:
+     ```cmd
+     copy .env-example .env
+     ```
+   - **Windows (PowerShell)**:
+     ```powershell
+     Copy-Item .env-example .env
+     ```
+
+2. **Iniciar os serviços com Docker**:
+   ```bash
+   docker compose up
+   ```
+   *(Adicione `-d` para rodar os containers em segundo plano)*
+
+O servidor backend estará rodando em `http://localhost:8080`.
+
+---
+
+### 3️⃣ Frontend (Next.js / React)
+
+Navegue até a pasta do frontend (a partir da raiz do projeto):
+```bash
+cd frontend
+```
+
+1. **Instalar as dependências**:
+   ```bash
+   npm i
+   ```
+
+2. **Executar o servidor de desenvolvimento**:
+   ```bash
+   npm run dev
+   ```
+
+O frontend estará disponível em `http://localhost:3000`.
+
+#### 💡 Configurar URL da API (Opcional)
+Se quiser definir um link/endereço diferente para a API backend, crie um arquivo `.env` na raiz da pasta `frontend` contendo:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8080
+```
+
+---
+
 ## 🚀 Tecnologias
 
 ### Backend
-
 - Java 21
 - Spring Boot
 - Spring Security
@@ -33,19 +109,15 @@ Cada funcionalidade é adicionada de forma incremental, seguindo uma evolução 
 - Maven
 
 ### Frontend
-
-- Typescript
-- React
+- Next.js / React
+- TypeScript
 
 ### Ferramentas
-
 - Docker
 - Swagger / OpenAPI
-- Git
-- GitHub
+- Git / GitHub
 
-### Tecnologias cloud usadas
-
+### Cloud
 - AWS S3
 - AWS SES
 
@@ -63,13 +135,13 @@ O projeto é desenvolvido em etapas, simulando sprints de um ambiente profission
 
 Este projeto tem como finalidade consolidar conhecimentos em desenvolvimento e arquitetura backend, aprender um pouco sobre AWS e Cloud e servir como portfólio, aplicando conceitos encontrados em sistemas utilizados em ambiente corporativo.
 
-O foco não é apenas entregar funcionalidades, mas construir uma aplicação seguindo princípios de qualidade, organização e escalabilidade.
-
 ---
 
-## Referências
+## 📚 Referências
 
-#### System Design do Google Drive: https://www.youtube.com/watch?v=qMPfjCH3qQU&t=1681s
+- System Design do Google Drive: https://www.youtube.com/watch?v=qMPfjCH3qQU&t=1681s
+
+---
 
 ## 📄 Licença
 

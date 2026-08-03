@@ -1,6 +1,47 @@
 # DocIntel - Backend
 
-Este é o módulo backend do projeto **DocIntel**, desenvolvido em Java com Spring Boot.
+Este é o módulo backend do projeto **DocIntel**, desenvolvido em Java 21 com Spring Boot.
+
+---
+
+## 🚀 Como Rodar o Backend
+
+### 1 | Clonar o Repositório
+Se você ainda não clonou o repositório principal:
+```bash
+git clone https://github.com/Matiaszz/DocIntel.git
+cd DocIntel/backend
+```
+
+### 2 | Configurar o arquivo `.env`
+Crie o arquivo de configuração `.env` baseado no `.env-example`:
+
+- **Linux / macOS**:
+  ```bash
+  cp .env-example .env
+  ```
+- **Windows (cmd)**:
+  ```cmd
+  copy .env-example .env
+  ```
+- **Windows (PowerShell)**:
+  ```powershell
+  Copy-Item .env-example .env
+  ```
+
+Edite as variáveis no arquivo `.env` caso queira ajustar credenciais de banco de dados, chaves JWT ou credenciais da AWS.
+
+### 3 | Subir com Docker Compose
+Suba o banco de dados PostgreSQL e a aplicação Backend executando:
+
+```bash
+docker compose up
+```
+*(Adicione `-d` para executar em segundo plano)*
+
+A aplicação backend estará rodando em `http://localhost:8080`.
+
+---
 
 ## 📋 Documentação da API (Swagger / OpenAPI)
 

@@ -17,17 +17,6 @@ services:
       timeout: 5s
       retries: 5
 
-  rabbitmq:
-    image: rabbitmq:3-management
-    env_file:
-      - .env
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-
   backend:
     build: .
     ports:
@@ -36,12 +25,9 @@ services:
       - .env
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      RABBITMQ_HOST: rabbitmq
     depends_on:
       postgres:
         condition: service_healthy
-      rabbitmq:
-        condition: service_started
 
 volumes:
   postgres_data:
