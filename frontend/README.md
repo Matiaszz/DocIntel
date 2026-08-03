@@ -6,7 +6,7 @@ Este é o módulo frontend do projeto **DocIntel**, desenvolvido com [Next.js](h
 
 ## 🚀 Como Rodar o Frontend
 
-### 1️⃣ Instalar Dependências
+### 1 | Instalar Dependências
 Navegue até a pasta `frontend` e instale os pacotes necessários:
 
 ```bash
@@ -14,7 +14,7 @@ cd frontend
 npm i
 ```
 
-### 2️⃣ Executar o Servidor de Desenvolvimento
+### 2 | Executar o Servidor de Desenvolvimento
 Inicie a aplicação em modo de desenvolvimento:
 
 ```bash
